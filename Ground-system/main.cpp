@@ -9,8 +9,10 @@ using namespace std;
 
 void drawText(Mat & image);
 
-int main()
+int main(int argc,char** argv)
 {
+    cout << "argc: "<<argc << endl;
+
     cout << "Built with OpenCV " << CV_VERSION << endl;
     Mat image;
     VideoCapture capture;
