@@ -18,8 +18,9 @@ drone_tracking::drone_tracking()
 *   Function : Default constructor
 ******************************************************************************/
 {
-
+  int methaman = 0;
 }
+
 
 // int drone_tracking::dummy_function()
 // /*****************************************************************************
