@@ -8,9 +8,10 @@
 * DESCRIPTION: See module specification file (.h-file).
 *
 *****************************************************************************/
+#include "drone_tracking.hpp"
 
 
-// Function dummy
+drone_tracking::drone_tracking();
 /*****************************************************************************
 *   Function : See module specification (.h-file).
 *****************************************************************************/
