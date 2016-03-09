@@ -12,7 +12,11 @@
 #pragma once
 
 /***************************** Include files *******************************/
-
+#include "opencv2/core.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/videoio.hpp"
+#include <string>
 
 /*****************************    Defines    *******************************/
 
@@ -25,6 +29,11 @@ class drone_tracking
 public:
   drone_tracking();
 private:
+  int argc;
+  char** argv;
+  Mat frame;
+  VideoCapture capture;
+
 
 };
 // Function dummy
