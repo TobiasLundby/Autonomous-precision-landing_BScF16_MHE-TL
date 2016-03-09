@@ -31,7 +31,7 @@ public:
 private:
   int argc;
   char** argv;
-  Mat frame;
+  UMat frame;
   VideoCapture capture;
 
 
