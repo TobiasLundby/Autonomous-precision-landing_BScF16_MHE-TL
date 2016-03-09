@@ -62,21 +62,21 @@ drone_tracking::drone_tracking(string filenameIn)
   filename = filenameIn;
 
   // Open specified video file or webcam
-  if(filename=="") // If filename is webcam
+  if(filename=="")                                   // If filename is webcam
   {
     cout << "Opening external webcam"<< endl;
-    capture.open(1);            // Open external webcam
+    capture.open(1);                                 // Open external webcam
 
   }
   else if(filename=="webcam")
   {
     cout << "Opening external webcam"<< endl;
-    capture.open(0);            // Open internal webcam
+    capture.open(0);                                // Open internal webcam
   }
   else
   {
     cout << "Opening video" << endl;
-    capture.open(filename);                  // Open file
+    capture.open(filename);                         // Open file
   }
 
 }
