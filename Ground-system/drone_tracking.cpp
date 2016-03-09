@@ -11,9 +11,15 @@
 #include "drone_tracking.hpp"
 
 
-drone_tracking::drone_tracking();
+drone_tracking::drone_tracking()
+/*****************************************************************************
+*   Input    :
+*   Output   :
+*   Function : Default constructor
+******************************************************************************/
+{
 
-//change
+}
 
 // int drone_tracking::dummy_function()
 // /*****************************************************************************
