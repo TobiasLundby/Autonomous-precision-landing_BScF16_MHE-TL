@@ -31,7 +31,6 @@ int main(int argc,char* argv[])
     filename = argv[1];
 
   drone_tracking video(filename);
-  video.show_video();
 
   return 0;
 }
