@@ -16,6 +16,7 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/videoio.hpp"
+#include <opencv2/video/background_segm.hpp>
 #include <vector>
 
 
@@ -37,6 +38,8 @@ private: // Methods
 
   // Drone shape detection methods
   void find_black_mask();
+  void subtract_background();
+  Mat canny_edge_detect(Mat);
 
 private: // Variables
   string filename;
@@ -49,6 +52,21 @@ private: // Variables
   Mat shape_frame_hsv;
   Mat black_mask_bgr;
   Mat black_mask_hsv;
+
+  // Background subtraction
+  Mat foreground_mask_KNN;
+  Mat foreground_mask_MOG2;
+  Ptr<BackgroundSubtractor> KNN;
+  Ptr<BackgroundSubtractor> MOG2;
+  Mat frame_foreground;
+
+  // Canny edge
+  int edgeThresh = 1;
+  int lowThresh = 10;
+  int const max_lowThreshold = 100;
+  int ratio = 3;
+  int kernel_size = 3;
+
   // HSV values for black
   int bgr_b_black_low = 0;
   int bgr_g_black_low = 0;
@@ -91,6 +109,9 @@ drone_tracking::drone_tracking(string filenameIn)
 ******************************************************************************/
 {
   filename = filenameIn;
+
+  MOG2 = createBackgroundSubtractorMOG2();  // Create background subtractor
+  KNN = createBackgroundSubtractorKNN();
   // Open specified video file or webcam
   if(filename=="") { // If filename is webcam
     cout << "Opening external webcam"<< endl;
@@ -140,7 +161,9 @@ void drone_tracking::frame_analysis()
 {
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
-  find_black_mask();
+  //find_black_mask();
+  subtract_background();
+  canny_edge_detect(frame_foreground);
   show_frame(video_window_text, frame_bgr);
 }
 
@@ -155,6 +178,39 @@ void drone_tracking::find_black_mask()
   //inRange(shape_frame,cv::Scalar(black_lowerb_b,black_lowerb_g,black_lowerb_r),cv::Scalar(black_upperb_b,black_upperb_g,black_upperb_r),black_mask);
   imshow("RGB Black mask",black_mask_bgr);
   imshow("HSV Black mask ",black_mask_hsv);
+}
+
+void drone_tracking::subtract_background()
+{
+  Mat dst;
+  dst = Scalar::all(255);
+  KNN->apply(frame_bgr,foreground_mask_KNN);
+  MOG2->apply(frame_bgr,foreground_mask_MOG2);
+
+  show_frame("Foreground KNN",foreground_mask_KNN);
+  show_frame("Foreground MOG2",foreground_mask_MOG2);
+
+  frame_bgr.copyTo(dst, foreground_mask_MOG2);
+  frame_foreground = dst;
+  imshow("Foreground masked",dst);
+}
+
+Mat drone_tracking::canny_edge_detect(Mat src)
+// Inpsired from http://docs.opencv.org/2.4/doc/tutorials/imgproc/imgtrans/canny_detector/canny_detector.html
+{
+  Mat frame_gray;
+  Mat canny_edges;
+  Mat dst;
+  cvtColor(src, frame_gray, CV_BGR2GRAY );
+  blur(frame_gray,canny_edges,Size(3,3));         // Reduce noise with kernel of 3*3
+
+  Canny(canny_edges,canny_edges,lowThresh,lowThresh*ratio,kernel_size);
+
+  dst = Scalar::all(0);
+  src.copyTo( dst, canny_edges);
+  imshow("Canny edges",dst);
+
+  return dst;
 }
 
 // int drone_tracking::dummy_function()
