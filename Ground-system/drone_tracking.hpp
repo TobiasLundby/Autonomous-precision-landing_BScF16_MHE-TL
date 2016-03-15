@@ -16,8 +16,13 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/videoio.hpp"
+#include "opencv2/photo.hpp"
 #include <opencv2/video/background_segm.hpp>
 #include <vector>
+
+#include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
 
 
 
@@ -38,8 +43,10 @@ private: // Methods
 
   // Drone shape detection methods
   void find_black_mask();
-  void subtract_background();
+  Mat subtract_background(Mat);
   Mat canny_edge_detect(Mat);
+  void find_contours(Mat);
+  Mat remove_noise(Mat);
 
 private: // Variables
   string filename;
@@ -66,6 +73,7 @@ private: // Variables
   int const max_lowThreshold = 100;
   int ratio = 3;
   int kernel_size = 3;
+  Mat canny_output;
 
   // HSV values for black
   int bgr_b_black_low = 0;
@@ -161,9 +169,11 @@ void drone_tracking::frame_analysis()
 {
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
-  //find_black_mask();
-  subtract_background();
-  canny_edge_detect(frame_foreground);
+  find_black_mask();
+  subtract_background(frame_bgr);
+  //remove_noise(frame_foreground);
+  Mat canny_result = canny_edge_detect(frame_foreground);
+  find_contours(canny_output);
   show_frame(video_window_text, frame_bgr);
 }
 
@@ -178,39 +188,80 @@ void drone_tracking::find_black_mask()
   //inRange(shape_frame,cv::Scalar(black_lowerb_b,black_lowerb_g,black_lowerb_r),cv::Scalar(black_upperb_b,black_upperb_g,black_upperb_r),black_mask);
   imshow("RGB Black mask",black_mask_bgr);
   imshow("HSV Black mask ",black_mask_hsv);
+
 }
 
-void drone_tracking::subtract_background()
+Mat drone_tracking::subtract_background(Mat src)
 {
   Mat dst;
   dst = Scalar::all(255);
-  KNN->apply(frame_bgr,foreground_mask_KNN);
-  MOG2->apply(frame_bgr,foreground_mask_MOG2);
+  KNN->apply(src,foreground_mask_KNN);
+  MOG2->apply(src,foreground_mask_MOG2);
 
-  show_frame("Foreground KNN",foreground_mask_KNN);
-  show_frame("Foreground MOG2",foreground_mask_MOG2);
+  //show_frame("Foreground KNN",foreground_mask_KNN);
+  //show_frame("Foreground MOG2",foreground_mask_MOG2);
 
   frame_bgr.copyTo(dst, foreground_mask_MOG2);
   frame_foreground = dst;
-  imshow("Foreground masked",dst);
+  show_frame("Foreground masked",dst);
+  return dst;
 }
 
 Mat drone_tracking::canny_edge_detect(Mat src)
 // Inpsired from http://docs.opencv.org/2.4/doc/tutorials/imgproc/imgtrans/canny_detector/canny_detector.html
 {
   Mat frame_gray;
-  Mat canny_edges;
+  //Mat canny_output;
   Mat dst;
   cvtColor(src, frame_gray, CV_BGR2GRAY );
-  blur(frame_gray,canny_edges,Size(3,3));         // Reduce noise with kernel of 3*3
+  blur(frame_gray,canny_output,Size(3,3));         // Reduce noise with kernel of 3*3
 
-  Canny(canny_edges,canny_edges,lowThresh,lowThresh*ratio,kernel_size);
+  Canny(canny_output,canny_output,lowThresh,lowThresh*ratio,kernel_size);
 
   dst = Scalar::all(0);
-  src.copyTo( dst, canny_edges);
+  src.copyTo( dst, canny_output);
   imshow("Canny edges",dst);
 
   return dst;
+}
+
+void drone_tracking::find_contours(Mat src)
+{
+  //RNG rng(12345);
+  vector<vector<Point>> contours;
+  vector<Vec4i> hierarchy;
+
+  findContours(src, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE,Point(0,0));
+
+  int biggest_index;
+  double area, biggest_area = 0;
+  for(int i=0;i<contours.size();i++)
+  {
+    area = contourArea(contours[i]);
+    if( area > biggest_area)
+    {
+      biggest_area = area;
+      biggest_index = i;
+    }
+  }
+
+  Mat contours_drawed = Mat::zeros( src.size(), CV_8UC3 ); // Make mat with size of src and 8-bit, unsigned, 3 channels
+  Scalar color = Scalar(100,100,100);
+/*  for(int i=0;i<contours.size();i++)
+  {
+    drawContours(contours_drawed, contours, i,color);
+  } */
+
+  drawContours(contours_drawed, contours, biggest_index,color);
+
+  show_frame("Contours",contours_drawed);
+}
+
+Mat drone_tracking::remove_noise(Mat src)
+{
+  fastNlMeansDenoisingColored(src,src,3,7,21);
+  show_frame("Noise removed",src);
+  //fastNlMeansDenoising(InputArray src, OutputArray dst, float h=3, int templateWindowSize=7, int searchWindowSize=21 )
 }
 
 // int drone_tracking::dummy_function()
