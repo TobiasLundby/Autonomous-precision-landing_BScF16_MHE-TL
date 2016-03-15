@@ -47,6 +47,7 @@ private: // Methods
   Mat canny_edge_detect(Mat);
   void find_contours(Mat);
   Mat remove_noise(Mat);
+  void subtract_background_manual(Mat);
 
 private: // Variables
   string filename;
@@ -74,6 +75,13 @@ private: // Variables
   int ratio = 3;
   int kernel_size = 3;
   Mat canny_output;
+
+  // Manual background subtraction
+  int frame_number = 0;
+  Mat frame1;
+  Mat frame2;
+  Mat frame3;
+  Mat background_frame;
 
   // HSV values for black
   int bgr_b_black_low = 0;
@@ -169,12 +177,13 @@ void drone_tracking::frame_analysis()
 {
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
-  find_black_mask();
-  subtract_background(frame_bgr);
+  //find_black_mask();
+  subtract_background_manual(frame_bgr);
+  //subtract_background(frame_bgr);
   //remove_noise(frame_foreground);
-  Mat canny_result = canny_edge_detect(frame_foreground);
-  find_contours(canny_output);
-  show_frame(video_window_text, frame_bgr);
+  //Mat canny_result = canny_edge_detect(frame_foreground);
+  //find_contours(canny_output);
+  //show_frame(video_window_text, frame_bgr);
 }
 
 
@@ -193,8 +202,9 @@ void drone_tracking::find_black_mask()
 
 Mat drone_tracking::subtract_background(Mat src)
 {
-  Mat dst;
+  Mat dst,dst_inv,black;
   dst = Scalar::all(255);
+  black = Scalar::all(255);
   KNN->apply(src,foreground_mask_KNN);
   MOG2->apply(src,foreground_mask_MOG2);
 
@@ -202,8 +212,11 @@ Mat drone_tracking::subtract_background(Mat src)
   //show_frame("Foreground MOG2",foreground_mask_MOG2);
 
   frame_bgr.copyTo(dst, foreground_mask_MOG2);
+  bitwise_not(dst, dst_inv,~foreground_mask_MOG2);
   frame_foreground = dst;
   show_frame("Foreground masked",dst);
+  show_frame("Foreground masked inverted",dst_inv);
+  show_frame("Foreground mask", foreground_mask_MOG2);
   return dst;
 }
 
@@ -262,6 +275,54 @@ Mat drone_tracking::remove_noise(Mat src)
   fastNlMeansDenoisingColored(src,src,3,7,21);
   show_frame("Noise removed",src);
   //fastNlMeansDenoising(InputArray src, OutputArray dst, float h=3, int templateWindowSize=7, int searchWindowSize=21 )
+}
+
+void drone_tracking::subtract_background_manual(Mat src)
+{
+  frame_number++;
+  cout << frame_number << endl;
+  if(frame_number < 0)
+    ;
+  else if(frame_number==1)
+    //frame1 = src;
+    src.copyTo(frame1);
+  else if(frame_number==2)
+    //frame2 = src;
+    src.copyTo(frame2);
+  else if(frame_number==3)
+  {
+    //frame3 = src;
+    src.copyTo(frame3);
+    Mat temp_frame, temp_frame2, temp_frame3;
+    temp_frame = frame1 + frame2;
+    temp_frame2 = temp_frame + frame3;
+    // //addWeighted(frame1, 1.0, frame2, 1.0, 0.0, temp_frame)
+    //addWeighted(frame3, 1.0, temp_frame, 1.0, 0.0,temp_frame2)
+    //background_frame = temp_frame2 / 3.0;
+    //show_frame("Background",temp_frame2);
+    //show_frame("Frame3",frame3);
+    //show_frame("Frame2",frame2);
+    //show_frame("Frame1",frame1);
+
+    //temp_frame3 = temp_frame2 / 3.0f;
+    //show_frame("temp_frame2",temp_frame3);
+
+  }
+  else
+    {
+      frame_foreground = src - frame3;
+      show_frame("Manual foreground",frame_foreground);
+
+
+
+      // Frame number reset to avoid avoid overflow problems
+      if(frame_number==65530)
+      {
+        frame_number = 4;     // Reset to first frame not used as background
+        cout << "frame_number reset" << endl;
+      }
+
+    }
 }
 
 // int drone_tracking::dummy_function()
