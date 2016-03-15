@@ -153,10 +153,10 @@ void drone_tracking::diode_detection()
   // Setup SimpleBlobDetector parameters.
 	SimpleBlobDetector::Params params;
 
-  params.blobColor = 255;
   // Change thresholds
 	//params.minThreshold = 0;
 	//params.maxThreshold = 100;
+  params.blobColor = 255;
 	// Filter by Area.
 	params.filterByArea = true;
 	params.minArea = 10;
@@ -180,7 +180,14 @@ void drone_tracking::diode_detection()
   Mat im_with_keypoints;
 	drawKeypoints( frame_gray_with_Gblur, keypoints, im_with_keypoints, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
 
-	// Show blobs
+  //cout << "There are " << keypoints.size() << " keypoints" << endl;
+
+  if (keypoints.size()) {
+    cout << "First has size " << keypoints[0].size << endl;
+    circle(im_with_keypoints, keypoints[0].pt, keypoints[0].size * 5, Scalar(255, 0, 0), 5);
+  }
+
+  // Show blobs
 	imshow("keypoints", im_with_keypoints );
 
   //show_frame("Gray frame with blur", frame_gray_with_Gblur);
@@ -188,7 +195,7 @@ void drone_tracking::diode_detection()
   inRange(frame_hsv, Scalar(hsv_h_red_low,hsv_s_red_low,hsv_v_red_low), Scalar(hsv_h_red_upper, hsv_s_red_upper, hsv_v_red_upper), mask_red);
   frame_red = Scalar(0);
   frame_bgr.copyTo(frame_red, mask_red);
-  //show_frame("Red frame", frame_red);
+  show_frame("Red frame", frame_red);
 }
 
 
