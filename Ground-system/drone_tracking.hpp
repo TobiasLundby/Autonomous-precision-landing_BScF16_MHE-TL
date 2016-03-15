@@ -47,7 +47,7 @@ private: // Variables
   // Diode detection Variables
   // HSV limits for color seperation
   int hsv_h_red_base        = 160; //60 is for green
-  int hsv_h_red_sensitivity = 30;
+  int hsv_h_red_sensitivity = 40;
   int hsv_h_red_low         = hsv_h_red_base - hsv_h_red_sensitivity;
   int hsv_h_red_upper       = hsv_h_red_base + hsv_h_red_sensitivity;
   int hsv_s_red_low         = 100;
@@ -156,8 +156,8 @@ void drone_tracking::diode_detection()
   params.blobColor = 255;
 	// Filter by Area.
 	params.filterByArea = true;
-	params.minArea = 10;
-  params.maxArea = 100;
+	params.minArea = 30;
+  params.maxArea = 300;
 	// Filter by Circularity
 	params.filterByCircularity = true;
 	params.minCircularity = 0.5;
@@ -195,16 +195,17 @@ void drone_tracking::diode_detection()
     for (size_t i = 0; i < keypoints.size(); i++) {
       int iterations = 0;
       int avg_hue_value = 0;
-      for (int j = keypoints[i].size; j < keypoints[i].size * 1.5; j++) {
+      for (int j = 1; j < keypoints[i].size; j++) {
         iterations++;
         avg_hue_value += midpoint_circle_algorithm(mask_red, keypoints[i].pt.x, keypoints[i].pt.y, j);
+        circle(im_with_keypoints, keypoints[i].pt, j, Scalar(0, 255, 0), 1);
       }
       total_avg_hue_value = avg_hue_value / iterations;
-      if (total_avg_hue_value > 15) {
-        cout << "Fucking red diode" << endl;
+      if (total_avg_hue_value > 10) {
+      //  cout << "Fucking red diode" << endl;
         circle(im_with_keypoints, keypoints[i].pt, keypoints[i].size, Scalar(255-(i*10), 0, 0), keypoints[i].size *1.5);
       }
-      //cout << "Index " << i << " has avg value " << total_avg_hue_value << endl;
+      cout << "Index " << i << " has avg value " << total_avg_hue_value << endl;
       //circle(im_with_keypoints, keypoints[i].pt, keypoints[i].size, Scalar(255-(i*10), 0, 0), keypoints[i].size);
     }
   }
