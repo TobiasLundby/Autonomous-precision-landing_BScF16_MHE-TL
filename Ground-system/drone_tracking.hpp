@@ -52,6 +52,7 @@ private: // Variables
   int hsv_v_red_low         = 100;
   int hsv_v_red_upper       = 255;
   Mat frame_hsv;
+  Mat frame_red;
   Mat red_mask;
 };
 
@@ -134,7 +135,10 @@ void drone_tracking::diode_detection()
 {
   cvtColor(frame_bgr, frame_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
   inRange(frame_hsv, Scalar(hsv_h_red_low,hsv_s_red_low,hsv_v_red_low), Scalar(hsv_h_red_upper, hsv_s_red_upper, hsv_v_red_upper), red_mask);
-  show_frame("Red mask", red_mask);
+  //bitwise_and(red_mask, frame_hsv, frame_red);
+  frame_red = Scalar(0);
+  frame_bgr.copyTo(frame_red, red_mask);
+  show_frame("Red frame", frame_red);
 }
 
 
