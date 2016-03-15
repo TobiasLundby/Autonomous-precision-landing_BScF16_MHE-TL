@@ -18,6 +18,8 @@
 #include "opencv2/videoio.hpp"
 #include <string>
 
+#include "opencv2/features2d.hpp"
+
 
 using namespace cv;
 using namespace std;
@@ -51,9 +53,15 @@ private: // Variables
   int hsv_s_red_upper       = 255;
   int hsv_v_red_low         = 100;
   int hsv_v_red_upper       = 255;
+  int gaussian_blur         = 11; //Must be positive and odd
   Mat frame_hsv;
   Mat frame_red;
-  Mat red_mask;
+  Mat frame_gray;
+  Mat frame_gray_with_Gblur;
+  Mat mask_red;
+
+  double m, M;
+  Point p_min, p_max;
 };
 
 drone_tracking::drone_tracking()
@@ -134,10 +142,53 @@ void drone_tracking::diode_detection()
 ******************************************************************************/
 {
   cvtColor(frame_bgr, frame_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
-  inRange(frame_hsv, Scalar(hsv_h_red_low,hsv_s_red_low,hsv_v_red_low), Scalar(hsv_h_red_upper, hsv_s_red_upper, hsv_v_red_upper), red_mask);
+  cvtColor(frame_bgr, frame_gray, COLOR_BGR2GRAY); //Convert the captured frame from BGR to HSV
+  show_frame("Gray frame", frame_gray);
+  GaussianBlur(frame_gray, frame_gray_with_Gblur, Size(gaussian_blur, gaussian_blur), 0);
+
+  //minMaxLoc(frame_gray_with_Gblur, &m, &M, &p_min, &p_max);
+  //cout << "min: " << m << " at " << p_min << " max: " << M << " at " << p_max << endl;
+  //circle(frame_gray_with_Gblur, p_max, 40, Scalar(255, 0, 0), 5);
+
+  // Setup SimpleBlobDetector parameters.
+	SimpleBlobDetector::Params params;
+
+  params.blobColor = 255;
+  // Change thresholds
+	//params.minThreshold = 0;
+	//params.maxThreshold = 100;
+	// Filter by Area.
+	params.filterByArea = true;
+	params.minArea = 10;
+  params.maxArea = 100;
+	// Filter by Circularity
+	params.filterByCircularity = true;
+	params.minCircularity = 0.1;
+	// Filter by Convexity
+	//params.filterByConvexity = true;
+	//params.minConvexity = 0.87;
+	// Filter by Inertia
+	//params.filterByInertia = true;
+	//params.minInertiaRatio = 0.01;
+	// Storage for blobs
+	vector<KeyPoint> keypoints;
+
+  // Set up detector with params
+	Ptr<SimpleBlobDetector> detector = SimpleBlobDetector::create(params);
+	// Detect blobs
+	detector->detect( frame_gray_with_Gblur, keypoints);
+  Mat im_with_keypoints;
+	drawKeypoints( frame_gray_with_Gblur, keypoints, im_with_keypoints, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+
+	// Show blobs
+	imshow("keypoints", im_with_keypoints );
+
+  //show_frame("Gray frame with blur", frame_gray_with_Gblur);
+
+  inRange(frame_hsv, Scalar(hsv_h_red_low,hsv_s_red_low,hsv_v_red_low), Scalar(hsv_h_red_upper, hsv_s_red_upper, hsv_v_red_upper), mask_red);
   frame_red = Scalar(0);
-  frame_bgr.copyTo(frame_red, red_mask);
-  show_frame("Red frame", frame_red);
+  frame_bgr.copyTo(frame_red, mask_red);
+  //show_frame("Red frame", frame_red);
 }
 
 
