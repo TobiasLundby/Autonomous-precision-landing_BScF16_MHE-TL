@@ -48,6 +48,9 @@ private: // Methods
   void find_contours(Mat);
   Mat remove_noise(Mat);
   void subtract_background_manual(Mat);
+  //Mat complete_drone_shape(Mat);
+  void load_shape();
+  void compare_shapes(Mat src);
 
 private: // Variables
   string filename;
@@ -83,13 +86,16 @@ private: // Variables
   Mat frame3;
   Mat background_frame;
 
+  // Compare shapes
+  Mat shape;
+
   // HSV values for black
   int bgr_b_black_low = 0;
   int bgr_g_black_low = 0;
   int bgr_r_black_low = 0;
-  int bgr_b_black_upper = 30;
-  int bgr_g_black_upper = 30;
-  int bgr_r_black_upper = 30;
+  int bgr_b_black_upper = 5;
+  int bgr_g_black_upper = 5;
+  int bgr_r_black_upper = 5;
 
   int hsv_h_black_base        = 0; //60 is for green
   int hsv_h_black_sensitivity = 30;
@@ -124,10 +130,13 @@ drone_tracking::drone_tracking(string filenameIn)
 *   Function : Overload constructor
 ******************************************************************************/
 {
-  filename = filenameIn;
-
+  //******* Init *******
   MOG2 = createBackgroundSubtractorMOG2();  // Create background subtractor
   KNN = createBackgroundSubtractorKNN();
+  //********************
+
+
+  filename = filenameIn;
   // Open specified video file or webcam
   if(filename=="") { // If filename is webcam
     cout << "Opening external webcam"<< endl;
@@ -156,6 +165,7 @@ drone_tracking::drone_tracking(string filenameIn)
     show_frame("Failed to open", frame_bgr);
     waitKey(0);
   }
+
 }
 
 void drone_tracking::show_frame(string window_text, Mat in_frame)
@@ -178,12 +188,13 @@ void drone_tracking::frame_analysis()
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
   //find_black_mask();
-  subtract_background_manual(frame_bgr);
+  //subtract_background_manual(frame_bgr);
   //subtract_background(frame_bgr);
   //remove_noise(frame_foreground);
   //Mat canny_result = canny_edge_detect(frame_foreground);
   //find_contours(canny_output);
   //show_frame(video_window_text, frame_bgr);
+  load_shape();
 }
 
 
@@ -215,8 +226,17 @@ Mat drone_tracking::subtract_background(Mat src)
   bitwise_not(dst, dst_inv,~foreground_mask_MOG2);
   frame_foreground = dst;
   show_frame("Foreground masked",dst);
-  show_frame("Foreground masked inverted",dst_inv);
-  show_frame("Foreground mask", foreground_mask_MOG2);
+  //show_frame("Foreground masked inverted",dst_inv);
+  //show_frame("Foreground mask", foreground_mask_MOG2);
+
+  Mat frame_foregrund_blackmask;
+  inRange(dst, Scalar(bgr_b_black_low,bgr_g_black_low,bgr_r_black_low), Scalar(bgr_b_black_upper, bgr_g_black_upper, bgr_r_black_upper), frame_foregrund_blackmask);
+
+  show_frame("Foreground blackmask",frame_foregrund_blackmask);
+
+
+
+
   return dst;
 }
 
@@ -323,6 +343,35 @@ void drone_tracking::subtract_background_manual(Mat src)
       }
 
     }
+}
+
+/*
+Mat drone_tracking::complete_drone_shape(Mat src)
+{
+  for()
+}
+*/
+
+void drone_tracking::compare_shapes(Mat src)
+{
+  Mat src_gray, result;
+  Mat shape_gray, shape_result;
+  int thresh=150;
+
+  vector<vector<Point>> src_contours1, shape_contours2;
+  vector<Vec4i>src_hierarchy1, shape_hierarchy2;
+
+  cvtColor(src, src_gray,CV_BGR2GRAY);
+  cvtColor(shape, shape_gray,CV_BGR2GRAY);
+  Canny(src,result, thresh,thresh*2);
+  Canny(shape_gray,shape_result,thresh,thresh*2);
+
+}
+
+void drone_tracking::load_shape()
+{
+  shape = imread("src/shape",0);   // Load as color image
+  show_frame("shape",shape);
 }
 
 // int drone_tracking::dummy_function()
