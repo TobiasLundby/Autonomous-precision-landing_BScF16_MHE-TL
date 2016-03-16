@@ -145,7 +145,7 @@ void drone_tracking::diode_detection()
 *   Function : Finds the diode
 ******************************************************************************/
 {
-
+  // Trying to fix a git error
   cvtColor(frame_bgr, frame_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
   cvtColor(frame_bgr, frame_gray, COLOR_BGR2GRAY); //Convert the captured frame from BGR to HSV
   GaussianBlur(frame_gray, frame_gray_with_Gblur, Size(gaussian_blur, gaussian_blur), 0);
