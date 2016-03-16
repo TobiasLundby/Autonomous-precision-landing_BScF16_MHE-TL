@@ -86,8 +86,11 @@ private: // Variables
   Mat frame3;
   Mat background_frame;
 
-  // Compare shapes
+  // Load shape and Compare shapes
   Mat shape;
+  vector<vector<Point>> shape_contours;
+  vector<Vec4i> shape_hierarchy;
+  int biggest_index = -1;
 
   // HSV values for black
   int bgr_b_black_low = 0;
@@ -151,6 +154,7 @@ drone_tracking::drone_tracking(string filenameIn)
 
   if(capture.isOpened()) { // Test if capture is opened
     cout << "Capture is opened" << endl;
+    load_shape();     // MUST BE PLACED SOMEWHERE ELSE
     for(;;) { // Processing
       capture >> frame_bgr;
       if(frame_bgr.empty())
@@ -194,7 +198,8 @@ void drone_tracking::frame_analysis()
   //Mat canny_result = canny_edge_detect(frame_foreground);
   //find_contours(canny_output);
   //show_frame(video_window_text, frame_bgr);
-  load_shape();
+  //load_shape();
+  compare_shapes(frame_bgr);
 }
 
 
@@ -354,24 +359,82 @@ Mat drone_tracking::complete_drone_shape(Mat src)
 
 void drone_tracking::compare_shapes(Mat src)
 {
-  Mat src_gray, result;
-  Mat shape_gray, shape_result;
-  int thresh=150;
+  Mat src_gray, src_result;
+ int thresh=150;
 
-  vector<vector<Point>> src_contours1, shape_contours2;
-  vector<Vec4i>src_hierarchy1, shape_hierarchy2;
+  vector<vector<Point>> src_contours;
+  vector<Vec4i> src_hierarchy;
 
   cvtColor(src, src_gray,CV_BGR2GRAY);
-  cvtColor(shape, shape_gray,CV_BGR2GRAY);
-  Canny(src,result, thresh,thresh*2);
-  Canny(shape_gray,shape_result,thresh,thresh*2);
+  Canny(src_gray,src_result, thresh,thresh*2);
+  findContours(src_result,src_contours,src_hierarchy,CV_RETR_TREE,CV_CHAIN_APPROX_SIMPLE,Point(0,0));
+
+  RNG rng(12345);
+  for(int i=0;i<src_contours.size();i++)
+  {
+      //Scalar color=Scalar(60,60,60);
+      Scalar color=Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
+      //matchShapes(src_contours[i], shape_contours[biggest_index],CV_CONTOURS_MATCH_I1,0)
+      drawContours(src_result,src_contours,i,color,1,8,shape_hierarchy,0,Point(0,0));
+  }
+
+  show_frame("src_result",src_result);
 
 }
 
 void drone_tracking::load_shape()
 {
-  shape = imread("src/shape",0);   // Load as color image
-  show_frame("shape",shape);
+  Mat shape_gray, shape_result;
+  int thresh=150;
+
+  shape = imread("src/shape.jpg");   // Load as color image
+  //show_frame("Shape source",shape);
+  cvtColor(shape, shape_gray,CV_BGR2GRAY);
+  //show_frame("Shape_gray",shape_gray);
+  Canny(shape_gray,shape_result,thresh,thresh*2);
+
+  //show_frame("Shape",shape_result);
+
+  //vector<vector<Point>> shape_contours;
+  //vector<Vec4i> shape_hierarchy;
+
+
+  Mat shape_result_color;
+  cvtColor(shape_result, shape_result_color,CV_GRAY2BGR);
+  findContours(shape_result,shape_contours,shape_hierarchy,CV_RETR_TREE,CV_CHAIN_APPROX_SIMPLE,Point(0,0));
+
+  RNG rng(12345);
+  // for(int i=0;i<shape_contours.size();i++)
+  // {
+  //     //Scalar color=Scalar(60,60,60);
+  //     Scalar color=Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
+  //     drawContours(shape_result_color,shape_contours,i,color,1,8,shape_hierarchy,0,Point(0,0));
+  // }
+
+  cout << "Shape contours.size()=" << shape_contours.size() << endl;
+
+  biggest_index = -1;
+  double area, biggest_area = 0;
+  for(int i=0;i<shape_contours.size();i++)
+  {
+    area = contourArea(shape_contours[i]);
+    if( area > biggest_area)
+    {
+      biggest_area = area;
+      biggest_index = i;
+    }
+  }
+
+  if(biggest_index != -1)
+  {
+    Scalar color=Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
+    drawContours(shape_result_color,shape_contours,biggest_index,color,1,8,shape_hierarchy,0,Point(0,0));
+    cout << "Shape biggest_index: " << biggest_index << endl;
+  }
+
+
+  show_frame("Shape contours",shape_result_color);
+
 }
 
 // int drone_tracking::dummy_function()
