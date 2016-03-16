@@ -48,9 +48,10 @@ private: // Methods
   void find_contours(Mat);
   Mat remove_noise(Mat);
   void subtract_background_manual(Mat);
-  //Mat complete_drone_shape(Mat);
+  Mat complete_drone_shape(Mat);
   void load_shape();
   void compare_shapes(Mat src);
+  void simple_shape_tracking();
 
 private: // Variables
   string filename;
@@ -92,7 +93,7 @@ private: // Variables
   vector<Vec4i> shape_hierarchy;
   int biggest_index = -1;
 
-  // HSV values for black
+  //HSV values for black
   int bgr_b_black_low = 0;
   int bgr_g_black_low = 0;
   int bgr_r_black_low = 0;
@@ -154,7 +155,7 @@ drone_tracking::drone_tracking(string filenameIn)
 
   if(capture.isOpened()) { // Test if capture is opened
     cout << "Capture is opened" << endl;
-    load_shape();     // MUST BE PLACED SOMEWHERE ELSE
+    //load_shape();     // MUST BE PLACED SOMEWHERE ELSE
     for(;;) { // Processing
       capture >> frame_bgr;
       if(frame_bgr.empty())
@@ -199,7 +200,8 @@ void drone_tracking::frame_analysis()
   //find_contours(canny_output);
   //show_frame(video_window_text, frame_bgr);
   //load_shape();
-  compare_shapes(frame_bgr);
+  //compare_shapes(frame_bgr);
+  simple_shape_tracking();
 }
 
 
@@ -402,7 +404,7 @@ void drone_tracking::compare_shapes(Mat src)
 
 
 
-  
+
 
 }
 
@@ -417,7 +419,7 @@ void drone_tracking::load_shape()
   //show_frame("Shape_gray",shape_gray);
   Canny(shape_gray,shape_result,thresh,thresh*2);
 
-  //show_frame("Shape",shape_result);
+  show_frame("Shape",shape_result);
 
   //vector<vector<Point>> shape_contours;
   //vector<Vec4i> shape_hierarchy;
@@ -458,6 +460,95 @@ void drone_tracking::load_shape()
 
 
   //show_frame("Shape contours",shape_result_color);
+
+}
+
+void drone_tracking::simple_shape_tracking()
+{
+  Mat frame_gray, black_mask1, black_mask1_blurred;
+  int black_low = 0;
+  int black_high = 40;
+
+
+
+  //cvtColor(frame_bgr, frame_gray, CV_BGR2GRAY);
+  //findContours(frame_gray,contours,hierarchy,CV_RETR_TREE,CV_CHAIN_APPROX_SIMPLE,Point(0,0));
+
+  inRange(frame_bgr, Scalar(black_low,black_low,black_low), Scalar(black_high,black_high,black_high),black_mask1);
+  //show_frame("black_mask",black_mask1);
+  //blur(black_mask1, black_mask1_blurred,Size(25,25));
+  //show_frame("black_mask blurred",black_mask1_blurred);
+  //inRange(black_mask1_blurred, Scalar(black_low,black_low,black_low), Scalar(black_high,black_high,black_high),black_mask1);
+  //show_frame("new black_mask ",black_mask1_blurred);
+
+  Mat frame_local, frame_local2;
+  frame_bgr.copyTo(frame_local);
+  frame_bgr.copyTo(frame_local2);
+
+
+  vector<vector<Point>> contours;
+  vector<Vec4i> hierarchy;
+
+  //cvtColor(frame_bgr,frame_gray,CV_BGR2GRAY);
+
+  int thresh = 150;
+  Mat canny_result;
+  Canny(frame_bgr,canny_result, thresh,thresh*2);
+  //show_frame("Canny result",canny_result);
+
+  findContours(canny_result,contours,hierarchy,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE,Point(0,0));
+  //drawContours(frame_local, contours, int contourIdx, const Scalar &color{#, int thickness{#, int lineType{#, InputArray hierarchy{#, int maxLevel{#, Point offset#}#}#}#}#})
+
+  Scalar color=Scalar(0,255,0);
+  for(int i;i<contours.size();i++)
+  {
+
+    drawContours(frame_local, contours, i, color, 5, 8, hierarchy, 0, Point(0,0));
+  }
+
+  bool foundOne = false;
+  int biggest_index1 = -1;
+  double area, biggest_area = 0;
+  for(int i=0;i<contours.size();i++)
+  {
+    area = contourArea(contours[i]);
+    if( area > biggest_area)
+    {
+      biggest_area = area;
+      biggest_index1 = i;
+      foundOne = true;
+    }
+  }
+
+  drawContours(frame_local2, contours, biggest_index1, color, 5, 8, hierarchy, 0, Point(0,0));
+
+  cout << contours.size() << endl;
+
+  namedWindow("Contours",CV_WINDOW_FREERATIO);
+  show_frame("Contours",frame_local);
+
+  namedWindow("Biggest contour",CV_WINDOW_FREERATIO);
+  show_frame("Biggest contour",frame_local2);
+
+  // Moments and mass centers
+  // Inspiration: http://docs.opencv.org/2.4/doc/tutorials/imgproc/shapedescriptors/moments/moments.html
+  vector<Moments> moment(contours.size() );
+  for(int i = 0; i < contours.size(); i++)
+  {
+    moment[i] = moments(contours[i],false);
+  }
+
+  color = Scalar(0,0,255);
+  vector<Point2f> mass_center(contours.size());
+  for(int i = 0; i < contours.size(); i++)
+  {
+    mass_center[i] = Point2f(moment[i].m10/moment[i].m00,moment[i].m01/moment[i].m00);
+  }
+
+  circle( frame_local2, mass_center[biggest_index1], 4, color, -1, 8, 0 );
+
+  //namedWindow("Center",CV_WINDOW_FREERATIO);
+  show_frame("Center",frame_local2);
 
 }
 
