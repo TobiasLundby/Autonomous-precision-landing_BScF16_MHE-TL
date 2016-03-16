@@ -12,13 +12,12 @@
 #pragma once
 
 /***************************** Include files *******************************/
-#include "opencv2/core.hpp"
-#include "opencv2/imgproc.hpp"
-#include "opencv2/highgui.hpp"
-#include "opencv2/videoio.hpp"
-#include <string>
-
-#include "opencv2/features2d.hpp"
+#include "opencv2/core.hpp"               // OpenCV includes
+#include "opencv2/imgproc.hpp"            // OpenCV includes
+#include "opencv2/highgui.hpp"            // OpenCV includes
+#include "opencv2/videoio.hpp"            // OpenCV includes
+#include <string>                         // Nessecary for constructor and other
+#include "opencv2/features2d.hpp"         // Used for blob detection
 
 
 using namespace cv;
@@ -36,7 +35,7 @@ private: // Methods
   void show_frame(string, Mat);
   void frame_analysis();
   void diode_detection();
-  int midpoint_circle_algorithm(Mat&, int, int, int);
+  int  midpoint_circle_algorithm(Mat&, int, int, int);
 
 private: // Variables
   string filename;
@@ -146,7 +145,7 @@ void drone_tracking::diode_detection()
 {
   cvtColor(frame_bgr, frame_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
   cvtColor(frame_bgr, frame_gray, COLOR_BGR2GRAY); //Convert the captured frame from BGR to HSV
-  GaussianBlur(frame_gray, frame_gray_with_Gblur, Size(gaussian_blur, gaussian_blur), 0);
+  GaussianBlur(frame_gray, frame_gray_with_Gblur, Size(gaussian_blur, gaussian_blur), 0); // Gaussian blur on gray frame
 
   // Setup SimpleBlobDetector parameters.
 	SimpleBlobDetector::Params params;
@@ -185,10 +184,6 @@ void drone_tracking::diode_detection()
   split(frame_red,frame_red_split);
 
   cvtColor(frame_red, frame_red_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
-
-  if (keypoints.size()) {
-    //cout << "value " << midpoint_circle_algorithm(frame_hsv, keypoints[0].pt.x, keypoints[0].pt.y, keypoints[0].size) << endl;
-  }
 
   int total_avg_hue_value;
   if (keypoints.size()) {
