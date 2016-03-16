@@ -53,7 +53,7 @@ private: // Variables
   int hsv_s_red_upper       = 255;
   int hsv_v_red_low         = 100;
   int hsv_v_red_upper       = 255;
-  int gaussian_blur         = 11; //Must be positive and odd
+  int gaussian_blur         = 3; //Must be positive and odd
   Mat frame_hsv;
   Mat frame_red;
   Mat frame_red_hsv;
@@ -62,6 +62,11 @@ private: // Variables
   Mat frame_gray_with_Gblur;
   Mat mask_red;
 
+  bool enable_wait = true;
+  int wait_time_ms = 200;
+
+	// Storage for blobs
+	vector<KeyPoint> keypoints;
 
   double m, M;
   Point p_min, p_max;
@@ -144,7 +149,9 @@ void drone_tracking::diode_detection()
 *   Function : Finds the diode
 ******************************************************************************/
 {
-  // Trying to fix a git error
+  if (enable_wait)
+    waitKey(wait_time_ms);
+  //resize(frame_bgr, frame_bgr, Size(600, 400)); // The webcam is 1280x720
   cvtColor(frame_bgr, frame_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
   cvtColor(frame_bgr, frame_gray, COLOR_BGR2GRAY); //Convert the captured frame from BGR to HSV
   GaussianBlur(frame_gray, frame_gray_with_Gblur, Size(gaussian_blur, gaussian_blur), 0); // Gaussian blur on gray frame
@@ -157,19 +164,17 @@ void drone_tracking::diode_detection()
   params.blobColor = 255;
 	// Filter by Area.
 	params.filterByArea = true;
-	params.minArea = 30;
+	params.minArea = 10;
   params.maxArea = 300;
 	// Filter by Circularity
-	params.filterByCircularity = true;
+	params.filterByCircularity = false;
 	params.minCircularity = 0.5;
 	// Filter by Convexity
-	//params.filterByConvexity = true;
-	//params.minConvexity = 0.87;
+	params.filterByConvexity = false;
+	params.minConvexity = 0.87;
 	// Filter by Inertia
-	//params.filterByInertia = true;
-	//params.minInertiaRatio = 0.01;
-	// Storage for blobs
-	vector<KeyPoint> keypoints;
+	params.filterByInertia = false;
+	params.minInertiaRatio = 0.01;
 
   // Set up detector with params
 	Ptr<SimpleBlobDetector> detector = SimpleBlobDetector::create(params);
@@ -182,7 +187,9 @@ void drone_tracking::diode_detection()
 
   inRange(frame_hsv, Scalar(hsv_h_red_low,hsv_s_red_low,hsv_v_red_low), Scalar(hsv_h_red_upper, hsv_s_red_upper, hsv_v_red_upper), mask_red);
   frame_red = Scalar(0);
+  dilate(mask_red, mask_red, cv::Mat(), cv::Point(-1,-1)); // Enhance the red areas in the image
   frame_bgr.copyTo(frame_red, mask_red);
+
   split(frame_red,frame_red_split);
 
   cvtColor(frame_red, frame_red_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
