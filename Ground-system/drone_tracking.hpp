@@ -373,10 +373,10 @@ void drone_tracking::compare_shapes(Mat src)
   RNG rng(12345);
   for(int i=0;i<src_contours.size();i++)
   {
-      //Scalar color=Scalar(60,60,60);
-      Scalar color=Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
-      answers.push_back( matchShapes(src_contours[i], shape_contours[biggest_index],CV_CONTOURS_MATCH_I1,0) );
-      drawContours(src_result,src_contours,i,color,1,8,shape_hierarchy,0,Point(0,0));
+      Scalar color=Scalar(0,255,0);
+      //Scalar color=Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
+      answers.push_back( matchShapes(src_contours[i], shape_contours[biggest_index],CV_CONTOURS_MATCH_I2,0) );
+      drawContours(src,src_contours,i,color,5,8,shape_hierarchy,0,Point(0,0));
   }
 
   float lowest_value = 1000;
@@ -384,15 +384,25 @@ void drone_tracking::compare_shapes(Mat src)
   for(int i;i<answers.size();i++)
   {
     if(answers[i]<lowest_value)
-      {
-        lowest_value = answers[i];
-        lowest_index = i;
-      }
+    {
+      lowest_value = answers[i];
+      lowest_index = i;
+    }
   }
 
-  cout << "Lowest value: " << answers[lowest_index] << " at index: " << lowest_index << endl;
+  cout << "Lowest value: " << answers[lowest_index] << " at index: " << lowest_index << " of: " << src_contours.size() << " indexes" << endl;
 
-  show_frame("src_result",src_result);
+  namedWindow("src_result",CV_WINDOW_FREERATIO);
+  namedWindow("src_result_below",CV_WINDOW_FREERATIO);
+  show_frame("src_result",src);
+
+  if(answers[lowest_index]<0.001)
+    show_frame("src_result_below",src);
+
+
+
+
+  
 
 }
 
@@ -447,7 +457,7 @@ void drone_tracking::load_shape()
   }
 
 
-  show_frame("Shape contours",shape_result_color);
+  //show_frame("Shape contours",shape_result_color);
 
 }
 
