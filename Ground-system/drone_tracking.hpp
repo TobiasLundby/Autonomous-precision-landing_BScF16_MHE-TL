@@ -63,6 +63,7 @@ private: // Variables
   Mat frame_gray_with_Gblur;
   Mat mask_red;
 
+
   double m, M;
   Point p_min, p_max;
 };
@@ -144,6 +145,7 @@ void drone_tracking::diode_detection()
 *   Function : Finds the diode
 ******************************************************************************/
 {
+
   cvtColor(frame_bgr, frame_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
   cvtColor(frame_bgr, frame_gray, COLOR_BGR2GRAY); //Convert the captured frame from BGR to HSV
   GaussianBlur(frame_gray, frame_gray_with_Gblur, Size(gaussian_blur, gaussian_blur), 0);
@@ -185,10 +187,6 @@ void drone_tracking::diode_detection()
   split(frame_red,frame_red_split);
 
   cvtColor(frame_red, frame_red_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
-
-  if (keypoints.size()) {
-    //cout << "value " << midpoint_circle_algorithm(frame_hsv, keypoints[0].pt.x, keypoints[0].pt.y, keypoints[0].size) << endl;
-  }
 
   int total_avg_hue_value;
   if (keypoints.size()) {
