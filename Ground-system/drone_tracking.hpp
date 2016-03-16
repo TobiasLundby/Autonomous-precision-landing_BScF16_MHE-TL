@@ -360,7 +360,7 @@ Mat drone_tracking::complete_drone_shape(Mat src)
 void drone_tracking::compare_shapes(Mat src)
 {
   Mat src_gray, src_result;
- int thresh=150;
+  int thresh=150;
 
   vector<vector<Point>> src_contours;
   vector<Vec4i> src_hierarchy;
@@ -369,14 +369,28 @@ void drone_tracking::compare_shapes(Mat src)
   Canny(src_gray,src_result, thresh,thresh*2);
   findContours(src_result,src_contours,src_hierarchy,CV_RETR_TREE,CV_CHAIN_APPROX_SIMPLE,Point(0,0));
 
+  vector<float> answers;
   RNG rng(12345);
   for(int i=0;i<src_contours.size();i++)
   {
       //Scalar color=Scalar(60,60,60);
       Scalar color=Scalar(rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255));
-      //matchShapes(src_contours[i], shape_contours[biggest_index],CV_CONTOURS_MATCH_I1,0)
+      answers.push_back( matchShapes(src_contours[i], shape_contours[biggest_index],CV_CONTOURS_MATCH_I1,0) );
       drawContours(src_result,src_contours,i,color,1,8,shape_hierarchy,0,Point(0,0));
   }
+
+  float lowest_value = 1000;
+  int lowest_index;
+  for(int i;i<answers.size();i++)
+  {
+    if(answers[i]<lowest_value)
+      {
+        lowest_value = answers[i];
+        lowest_index = i;
+      }
+  }
+
+  cout << "Lowest value: " << answers[lowest_index] << " at index: " << lowest_index << endl;
 
   show_frame("src_result",src_result);
 
