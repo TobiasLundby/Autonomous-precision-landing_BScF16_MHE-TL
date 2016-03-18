@@ -34,6 +34,8 @@ public: // Methods
 private: // Methods
   void show_frame(string, Mat);
   void frame_analysis();
+  void frame_save(Mat&);
+  void frame_save(Mat&, string);
   void diode_detection();
   int  midpoint_circle_algorithm(Mat&, int, int, int);
 
@@ -42,6 +44,10 @@ private: // Variables
   Mat frame_bgr;
   VideoCapture capture;
   string video_window_text = "Drone tracking";
+
+  // frame_save
+  int frame_counter = 1;
+  string save_type = "png";
 
   // Diode detection Variables
   // HSV limits for color seperation
@@ -64,6 +70,8 @@ private: // Variables
 
   bool enable_wait = true;
   int wait_time_ms = 200;
+
+  bool test_bool = true;
 
 	// Storage for blobs
 	vector<KeyPoint> keypoints;
@@ -194,6 +202,8 @@ void drone_tracking::diode_detection()
 
   cvtColor(frame_red, frame_red_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
 
+  frame_save(frame_red, "hoejgaard");
+
   int total_avg_hue_value;
   if (keypoints.size()) {
     for (size_t i = 0; i < keypoints.size(); i++) {
@@ -263,6 +273,29 @@ int drone_tracking::midpoint_circle_algorithm(Mat& image, int x0, int y0, int ra
   return 1;
 }
 
+void drone_tracking::frame_save(Mat& frame_in)
+/*****************************************************************************
+*   Input    : The actual frame
+*   Output   : None (void)
+*   Function : Saves the frame with an automatically generated name. NOTE the folder 'output' must exist
+******************************************************************************/
+{
+  string name;
+  name = string("frame-") + to_string(frame_counter);
+  frame_counter++;
+  frame_save(frame_in, name);
+}
+
+void drone_tracking::frame_save(Mat& frame_in, string name_in)
+/*****************************************************************************
+*   Input    : The actual frame and a name WITHOUT file extension
+*   Output   : None (void)
+*   Function : Saves the frame. NOTE the folder 'output' must exist
+******************************************************************************/
+{
+  name_in += "." + save_type;
+  imwrite( "./output/"+name_in, frame_in );
+}
 
 // int drone_tracking::dummy_function()
 // /*****************************************************************************
