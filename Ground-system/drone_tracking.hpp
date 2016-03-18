@@ -76,7 +76,7 @@ private: // Variables
   double color_threashold = 0.010;
   int hue_radius = 20; // [%]
 
-  bool enable_wait = true;
+  bool enable_wait = false;
   int wait_time_ms = 100;
 
   bool test_bool = true;
@@ -249,7 +249,7 @@ void drone_tracking::diode_detection()
       mean_of_frame = mean(frame_temp)[0]/(pow(keypoints[i].size,2)*M_PI)*mean_multiply_factor;
       //cout << i << ": " << mean_of_frame << "\t";
       if (mean_of_frame > color_threashold) {
-        circle(im_with_keypoints, keypoints[i].pt, keypoints[i].size, Scalar(255-(i*10), 0, 0), keypoints[i].size *1.5);
+        circle(im_with_keypoints, keypoints[i].pt, keypoints[i].size, Scalar(255-(i*10), 0, 0), keypoints[i].size+(hue_radius/100));
         cout << "Red LED at position: " << keypoints[i].pt << endl;
       }
     }
@@ -257,6 +257,7 @@ void drone_tracking::diode_detection()
   }
   // Show blobs
   show_frame("Recognized red LEDs", im_with_keypoints);
+  frame_save(im_with_keypoints);
 
   //show_frame("Channel frame", frame_red_split[0]);
   //show_frame("Red frame", frame_red);
