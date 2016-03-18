@@ -277,7 +277,7 @@ void drone_tracking::frame_save(Mat& frame_in)
 /*****************************************************************************
 *   Input    : The actual frame
 *   Output   : None (void)
-*   Function : Saves the frame with an automatically generated name. NOTE the folder 'output' must exist
+*   Function : Saves the frame with an automatically generated name. NOTE the folders 'output', 'images', and 'videos' must exist
 ******************************************************************************/
 {
   string name;
@@ -290,11 +290,11 @@ void drone_tracking::frame_save(Mat& frame_in, string name_in)
 /*****************************************************************************
 *   Input    : The actual frame and a name WITHOUT file extension
 *   Output   : None (void)
-*   Function : Saves the frame. NOTE the folder 'output' must exist
+*   Function : Saves the frame. NOTE the folders 'output', 'images', and 'videos' must exist
 ******************************************************************************/
 {
   name_in += "." + save_type;
-  imwrite( "./output/"+name_in, frame_in );
+  imwrite( "./output/images/"+name_in, frame_in );
 }
 
 // int drone_tracking::dummy_function()
