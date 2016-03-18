@@ -37,7 +37,6 @@ private: // Methods
   void frame_save(Mat&);
   void frame_save(Mat&, string);
   void diode_detection();
-  int  midpoint_circle_algorithm(Mat&, int, int, int);
 
 private: // Variables
   string filename;
@@ -45,14 +44,16 @@ private: // Variables
   VideoCapture capture;
   string video_window_text = "Drone tracking";
 
+  int global_frame_counter = 0;
+
   // frame_save
-  int frame_counter = 1;
-  string save_type = "png";
+  int frame_save_counter = 1;
+  string frame_save_type = "png";
 
   // Diode detection Variables
   // HSV limits for color seperation
   int hsv_h_red_base        = 160; //60 is for green
-  int hsv_h_red_sensitivity = 40;
+  int hsv_h_red_sensitivity = 25;
   int hsv_h_red_low         = hsv_h_red_base - hsv_h_red_sensitivity;
   int hsv_h_red_upper       = hsv_h_red_base + hsv_h_red_sensitivity;
   int hsv_s_red_low         = 100;
@@ -60,6 +61,7 @@ private: // Variables
   int hsv_v_red_low         = 100;
   int hsv_v_red_upper       = 255;
   int gaussian_blur         = 3; //Must be positive and odd
+  int dilate_color_iterations = 3;
   Mat frame_hsv;
   Mat frame_red;
   Mat frame_red_hsv;
@@ -67,9 +69,15 @@ private: // Variables
   Mat frame_gray;
   Mat frame_gray_with_Gblur;
   Mat mask_red;
+  Mat mask_circles;
+  Mat frame_temp;
+
+  int mean_multiply_factor = 100; //Effects the one below linear
+  double color_threashold = 0.010;
+  int hue_radius = 20; // [%]
 
   bool enable_wait = true;
-  int wait_time_ms = 200;
+  int wait_time_ms = 100;
 
   bool test_bool = true;
 
@@ -147,6 +155,8 @@ void drone_tracking::frame_analysis()
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
   //show_frame(video_window_text, frame_bgr);
+  global_frame_counter++;
+  cout << endl << "Frame: " << global_frame_counter << endl;
   diode_detection();
 }
 
@@ -172,7 +182,7 @@ void drone_tracking::diode_detection()
   params.blobColor = 255;
 	// Filter by Area.
 	params.filterByArea = true;
-	params.minArea = 10;
+	params.minArea = 5;
   params.maxArea = 300;
 	// Filter by Circularity
 	params.filterByCircularity = false;
@@ -195,82 +205,61 @@ void drone_tracking::diode_detection()
 
   inRange(frame_hsv, Scalar(hsv_h_red_low,hsv_s_red_low,hsv_v_red_low), Scalar(hsv_h_red_upper, hsv_s_red_upper, hsv_v_red_upper), mask_red);
   frame_red = Scalar(0);
-  dilate(mask_red, mask_red, cv::Mat(), cv::Point(-1,-1)); // Enhance the red areas in the image
+  for (size_t i = 0; i < dilate_color_iterations; i++)
+    dilate(mask_red, mask_red, Mat(), Point(-1,-1)); // Enhance the red areas in the image
   frame_bgr.copyTo(frame_red, mask_red);
 
   split(frame_red,frame_red_split);
 
   cvtColor(frame_red, frame_red_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
 
-  frame_save(frame_red, "hoejgaard");
+  // int total_avg_hue_value;
+  // if (keypoints.size()) {
+  //   for (size_t i = 0; i < keypoints.size(); i++) {
+  //     int iterations = 0;
+  //     int avg_hue_value = 0;
+  //     for (int j = 1; j < keypoints[i].size; j++) {
+  //       iterations++;
+  //       avg_hue_value += midpoint_circle_algorithm(mask_red, keypoints[i].pt.x, keypoints[i].pt.y, j);
+  //       circle(im_with_keypoints, keypoints[i].pt, j, Scalar(0, 255, 0), 1);
+  //     }
+  //     total_avg_hue_value = avg_hue_value / iterations;
+  //     if (total_avg_hue_value > 10) {
+  //     //  cout << "Fucking red diode" << endl;
+  //       circle(im_with_keypoints, keypoints[i].pt, keypoints[i].size, Scalar(255-(i*10), 0, 0), keypoints[i].size *1.5);
+  //     }
+  //     //cout << "Index " << i << " has avg value " << total_avg_hue_value << endl;
+  //     //circle(im_with_keypoints, keypoints[i].pt, keypoints[i].size, Scalar(255-(i*10), 0, 0), keypoints[i].size);
+  //   }
+  // }
 
-  int total_avg_hue_value;
-  if (keypoints.size()) {
+  //mask_circles
+  double mean_of_frame = 0;
+  if (keypoints.size())
+  {
     for (size_t i = 0; i < keypoints.size(); i++) {
-      int iterations = 0;
-      int avg_hue_value = 0;
-      for (int j = 1; j < keypoints[i].size; j++) {
-        iterations++;
-        avg_hue_value += midpoint_circle_algorithm(mask_red, keypoints[i].pt.x, keypoints[i].pt.y, j);
-        circle(im_with_keypoints, keypoints[i].pt, j, Scalar(0, 255, 0), 1);
-      }
-      total_avg_hue_value = avg_hue_value / iterations;
-      if (total_avg_hue_value > 10) {
-      //  cout << "Fucking red diode" << endl;
+      //for (size_t i = 3; i < 4; i++) {
+      putText(im_with_keypoints, to_string(i), keypoints[i].pt, FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0));
+      mask_circles = mask_red.clone(); // Just to get the proper size
+      mask_circles = Scalar(0); // Image data clear
+      circle(mask_circles, keypoints[i].pt, keypoints[i].size * 1+(hue_radius/100), Scalar(255), -1); // Draw a circle
+      frame_temp = Scalar(0);
+      mask_red.copyTo(frame_temp, mask_circles);
+      //imshow("Temp", frame_temp );
+      mean_of_frame = mean(frame_temp)[0]/(pow(keypoints[i].size,2)*M_PI)*mean_multiply_factor;
+      //cout << i << ": " << mean_of_frame << "\t";
+      if (mean_of_frame > color_threashold) {
         circle(im_with_keypoints, keypoints[i].pt, keypoints[i].size, Scalar(255-(i*10), 0, 0), keypoints[i].size *1.5);
+        cout << "Red LED at position: " << keypoints[i].pt << endl;
       }
-      cout << "Index " << i << " has avg value " << total_avg_hue_value << endl;
-      //circle(im_with_keypoints, keypoints[i].pt, keypoints[i].size, Scalar(255-(i*10), 0, 0), keypoints[i].size);
     }
+    cout << endl;
   }
-
   // Show blobs
-	imshow("keypoints", im_with_keypoints );
+  show_frame("Recognized red LEDs", im_with_keypoints);
 
   //show_frame("Channel frame", frame_red_split[0]);
-  show_frame("Red frame", mask_red);
-}
-
-int drone_tracking::midpoint_circle_algorithm(Mat& image, int x0, int y0, int radius)
-/*****************************************************************************
-*   Input    : x
-*   Output   :
-*   Function :
-*   Ref      : https://en.wikipedia.org/wiki/Midpoint_circle_algorithm
-******************************************************************************/
-{
-  int x = radius;
-  int y = 0;
-  int decisionOver2 = 1 - x;   // Decision criterion divided by 2 evaluated at x=r, y=0
-  int sum = 0;
-  int pixel_count = 0;
-
-  while( y <= x )
-  {
-    pixel_count += 8;
-    sum += image.at<uchar>(x + x0, y + y0); // Octant 1
-    sum += image.at<uchar>(y + x0, x + y0); // Octant 2
-    sum += image.at<uchar>(-x + x0, y + y0); // Octant 4
-    sum += image.at<uchar>(-y + x0, x + y0); // Octant 3
-    sum += image.at<uchar>(-y + x0, -x + y0); // Octant 6
-    sum += image.at<uchar>(-x + x0, -y + y0); // Octant 5
-    sum += image.at<uchar>(x + x0, -y + y0); // Octant 7
-    sum += image.at<uchar>(y + x0, -x + y0); // Octant 8
-
-    y++;
-    if (decisionOver2<=0)
-    {
-      decisionOver2 += 2 * y + 1;   // Change in decision criterion for y -> y+1
-    }
-    else
-    {
-      x--;
-      decisionOver2 += 2 * (y - x) + 1;   // Change for y -> y+1, x -> x-1
-    }
-  }
-  if (pixel_count)
-    return sum / pixel_count;
-  return 1;
+  //show_frame("Red frame", frame_red);
 }
 
 void drone_tracking::frame_save(Mat& frame_in)
@@ -281,8 +270,8 @@ void drone_tracking::frame_save(Mat& frame_in)
 ******************************************************************************/
 {
   string name;
-  name = string("frame-") + to_string(frame_counter);
-  frame_counter++;
+  name = string("frame-") + to_string(frame_save_counter);
+  frame_save_counter++;
   frame_save(frame_in, name);
 }
 
@@ -293,7 +282,7 @@ void drone_tracking::frame_save(Mat& frame_in, string name_in)
 *   Function : Saves the frame. NOTE the folders 'output', 'images', and 'videos' must exist
 ******************************************************************************/
 {
-  name_in += "." + save_type;
+  name_in += "." + frame_save_type;
   imwrite( "./output/images/"+name_in, frame_in );
 }
 
