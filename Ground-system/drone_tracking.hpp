@@ -32,14 +32,14 @@ using namespace std;
 # define M_PI           3.14159265358979323846  /* pi */
 
 // Drone shape tracking
-#define SHAPE_IM_LOCATION   "src/shape.jpg"
+#define SHAPE_IM_PATH       "src/shape.jpg"
 #define EROSION_TYPE        MORPH_ELLIPSE // MORPH_RECT MORPH_CROSS MORPH_ELLIPSE
-#define EROSION_SIZE        1
-#define ERODE_ITERATIONS    2
+#define EROSION_SIZE        1             //1
+#define ERODE_ITERATIONS    2             // 2 finds shape_contour and removes stick
 #define DILATION_TYPE       MORPH_ELLIPSE // MORPH_RECT MORPH_CROSS MORPH_ELLIPSE
-#define DILATION_SIZE       1
-#define DILATE_ITERATIONS   4
-#define TRESH_THRESH        40
+#define DILATION_SIZE       1             //1
+#define DILATE_ITERATIONS   4             // 4 finds shape_contour and removes stick
+#define THRESH_THRESH       40
 #define THRESH_MAXVAL       255
 #define THRESH_TYPE         THRESH_BINARY   // If s(x,y)>thresh s(x,y)=0 else THRESH_MAXVAL
 
@@ -186,6 +186,7 @@ void drone_tracking::frame_analysis()
   //load_shape();
   //compare_shapes(frame_bgr);
   //simple_shape_tracking();
+  waitKey(200);
   get_drone_position(frame_bgr);
 
 }
@@ -287,30 +288,50 @@ void drone_tracking::simple_shape_tracking()
 xy_position drone_tracking::get_drone_position(Mat src_frame_in)
 // With inspiration from code written by Stig Halfdan Juhl Turner
 {
+  bool debug = true;
   Mat src_frame_color, src_frame_gray;
   src_frame_in.copyTo(src_frame_color); // Make sure not to alter original frame
   cvtColor(src_frame_color,src_frame_gray,COLOR_BGR2GRAY);
+
+  xy_position position;
 
   if(!shape_loaded)   // Shape must be loaded first
     load_shape_im();
   else                // Do the tracking
   {
     frame_contours = get_contours(src_frame_gray);
-    cout << "Frame contours: " << frame_contours.size() << endl;
+
+    if(debug)
+    {
+      cout << "Frame contours: " << frame_contours.size() << endl;
+      Scalar color = Scalar(0,255,0);
+      drawContours(src_frame_color,shape_contours,-1,color,1,8,shape_hierarchy,0,Point(0,0));
+      //namedWindow("Frame contours", WINDOW_FREERATIO);
+      show_frame("Frame contours", src_frame_color);
+    }
+
+
+    frame_contours.clear();
   }
+
+  return position;
 }
 
 void drone_tracking::load_shape_im()
 {
-  Mat shape_im = imread(SHAPE_IM_LOCATION,CV_LOAD_IMAGE_GRAYSCALE);   // Load shape image in gray scale
+  bool debug = true;
+  Mat shape_im = imread(SHAPE_IM_PATH,CV_LOAD_IMAGE_GRAYSCALE);   // Load shape image in gray scale
 
   // for debug:
-  Mat shape_im_color = imread(SHAPE_IM_LOCATION);
-  Mat shape_contour0, shape_contour1;
-  shape_im_color.copyTo(shape_contour0);
-  shape_im_color.copyTo(shape_contour1);
 
-  show_frame("Shape frame", shape_im);
+    Mat shape_im_color = imread(SHAPE_IM_PATH);
+    Mat shape_contour0, shape_contour1;
+    shape_im_color.copyTo(shape_contour0);
+    shape_im_color.copyTo(shape_contour1);
+  if(debug)
+  {
+    show_frame("Shape frame", shape_im);
+  }
   // end debug
 
 
@@ -323,15 +344,17 @@ void drone_tracking::load_shape_im()
   }
 
 
-  cout << shape_contours.size() << endl;
-  show_frame("Contours on shape frame", shape_im_color);
-
-
   // debug
-  drawContours(shape_contour0,shape_contours,0,color,1,8,shape_hierarchy,0,Point(0,0));
-  drawContours(shape_contour1,shape_contours,1,color,1,8,shape_hierarchy,0,Point(0,0));
-  show_frame("Contour0", shape_contour0);
-  show_frame("Contour1", shape_contour1);
+  if(debug)
+  {
+    cout << shape_contours.size() << endl;
+    show_frame("Contours on shape frame", shape_im_color);
+
+    drawContours(shape_contour0,shape_contours,0,color,1,8,shape_hierarchy,0,Point(0,0));
+    drawContours(shape_contour1,shape_contours,1,color,1,8,shape_hierarchy,0,Point(0,0));
+    show_frame("Contour0", shape_contour0);
+    show_frame("Contour1", shape_contour1);
+  }
   // end debug
 
   shape_loaded = true;
@@ -344,9 +367,11 @@ vector<vector<Point>> drone_tracking::get_contours(Mat src_in)
   src_in.copyTo(src);
   vector<vector<Point>> local_contours;
   vector<Vec4i> local_hierarchy;
-  threshold(src, src, TRESH_THRESH, THRESH_MAXVAL, THRESH_TYPE);
+  threshold(src, src, THRESH_THRESH, THRESH_MAXVAL, THRESH_TYPE);
   local_erode(src);
   local_dilate(src);
+  blur(src, src, Size(4,4),Point(-1,-1));
+  show_frame("Src blurred",src);
   findContours(src, local_contours, local_hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
   shape_hierarchy = local_hierarchy;      // Temporary test. Should be removed.
   return local_contours;
@@ -374,7 +399,7 @@ Mat drone_tracking::local_dilate(Mat src)
                                        Point(DILATION_SIZE, DILATION_SIZE));
 
   dilate(src, src, element, Point(-1,-1), DILATE_ITERATIONS);
-  namedWindow("Dilate", CV_WINDOW_FREERATIO);
+  //namedWindow("Dilate", CV_WINDOW_FREERATIO);
   show_frame("Dilate", src);
   return src;
 }
