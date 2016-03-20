@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "uav_locator_inc.hpp"
+//#include "uav_locator_inc.hpp"
 
 
 
@@ -40,7 +40,7 @@ using namespace std;
 #define ERODE_ITERATIONS    2             // 2 finds shape_contour and removes stick
 #define DILATION_TYPE       MORPH_ELLIPSE // MORPH_RECT MORPH_CROSS MORPH_ELLIPSE
 #define DILATION_SIZE       1             //1
-//#define DILATE_ITERATIONS   4             // 4 finds shape_contour and removes stick
+#define DILATE_ITERATIONS   4             // 4 finds shape_contour and removes stick
 #define THRESH_THRESH       40
 #define THRESH_MAXVAL       255
 #define THRESH_TYPE         THRESH_BINARY   // If s(x,y)>thresh s(x,y)=0 else THRESH_MAXVAL
