@@ -52,7 +52,7 @@ height_point locate_uav(Mat _in_color) {
 
     //Scalar color = Scalar(0,255,0);
     //drawContours(_in_color,received,-1,color,4,8,shape_hierarchy,0,Point(0,0));
-    //imshow("LORT",_in_color);
+    //imshow("All contours",_in_color);
 
     for (int i = 0; i < static_cast<int>(received.size()); i++) {
         matches.push_back(matchShapes(original[ORIGINAL_SHAPE], received[i],

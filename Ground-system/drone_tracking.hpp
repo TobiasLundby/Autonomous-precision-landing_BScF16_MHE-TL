@@ -35,21 +35,25 @@ using namespace std;
 
 // Drone shape tracking
 #define SHAPE_IM_PATH       "src/shape.jpg"
+#define SHAPE_CONTOUR_INDEX 0
+
 #define EROSION_TYPE        MORPH_ELLIPSE // MORPH_RECT MORPH_CROSS MORPH_ELLIPSE
-//#define EROSION_SIZE        1             //1
-//#define ERODE_ITERATIONS    2             // 2 finds shape_contour and removes stick
+#define EROSION_SIZE        1             //1
+#define ERODE_ITERATIONS    2             // 2 finds shape_contour and removes stick
 #define DILATION_TYPE       MORPH_ELLIPSE // MORPH_RECT MORPH_CROSS MORPH_ELLIPSE
-#define DILATION_SIZE       1             //1
-//#define DILATE_ITERATIONS   4             // 4 finds shape_contour and removes stick
-#define THRESH_THRESH       40              //40
+#define DILATION_SIZE       EROSION_SIZE             //1
+#define DILATE_ITERATIONS   2             // 4 finds shape_contour and removes stick
+
+#define THRESH_THRESH       60              //40
 #define THRESH_MAXVAL       255             //255
 #define THRESH_TYPE         THRESH_BINARY_INV   // THRESH_BINARY
 
+#define SHAPE_FOUND_THRESH  1
 
-struct xy_position{
+typedef struct xy_position{
    int x;
    int y;
- }plane_position;
+ } xy_position;
 
 
 
@@ -94,7 +98,7 @@ private: // Variables
   bool shape_loaded = false;
   vector<vector<Point>> shape_contours, frame_contours;
   vector<Vec4i> shape_hierarchy;          // NOTE: Temp, to be removed
-
+  int frame_number = 0;
 
 
 
@@ -190,9 +194,8 @@ void drone_tracking::frame_analysis()
   //compare_shapes(frame_bgr);
   //simple_shape_tracking();
   waitKey(200);
-  cout << THRESH_TYPE << endl;
-  //get_drone_position(frame_bgr);
-  locate_uav(frame_bgr);
+  get_drone_position(frame_bgr);
+  //locate_uav(frame_bgr);
 
 }
 
@@ -293,38 +296,72 @@ void drone_tracking::simple_shape_tracking()
 xy_position drone_tracking::get_drone_position(Mat src_frame_in)
 // With inspiration from code written by Stig Halfdan Juhl Turner
 {
-  bool debug = true;
+  // Prepare the frame for tracking
+  bool debug = false;
   Mat src_frame_color, src_frame_gray;
   src_frame_in.copyTo(src_frame_color); // Make sure not to alter original frame
   cvtColor(src_frame_color,src_frame_gray,COLOR_BGR2GRAY);
 
+  // Variables
   xy_position position;
+  vector<double> match_results;
+  double lowest_match_result = INT_MAX;
+  int best_match_index;
 
+  // Load shape
   if(!shape_loaded)   // Shape must be loaded first
     load_shape_im();
-  else                // Do the tracking
+
+  //Find contours in frame
+  frame_contours = get_contours(src_frame_gray);
+
+  if(debug)
   {
-    frame_contours = get_contours(src_frame_gray);
-
-    if(debug)
-    {
-      cout << "Frame contours: " << frame_contours.size() << endl;
-      Scalar color = Scalar(0,255,0);
-      drawContours(src_frame_color,shape_contours,-1,color,1,8,shape_hierarchy,0,Point(0,0));
-      //namedWindow("Frame contours", WINDOW_FREERATIO);
-      show_frame("Frame contours", src_frame_color);
-    }
-
-
-    frame_contours.clear();
+    cout << "Frame contours: " << frame_contours.size() << endl;
+    Scalar color = Scalar(0,255,0);
+    drawContours(src_frame_color,shape_contours,-1,color,1,8,shape_hierarchy,
+      0,Point(0,0));
+    //namedWindow("Frame contours", WINDOW_FREERATIO);
+    show_frame("Frame contours", src_frame_color);
   }
+
+  for(int i = 0; i < frame_contours.size(); i++)
+  {
+    match_results.push_back(matchShapes(shape_contours[SHAPE_CONTOUR_INDEX],
+       frame_contours[i], CV_CONTOURS_MATCH_I1, 0));
+  }
+
+  for(int i = 0; i < static_cast<int>(match_results.size()); i++)
+  {
+    if(match_results[i] < lowest_match_result
+      && match_results[i] < SHAPE_FOUND_THRESH)
+    {
+      lowest_match_result = match_results[i];
+      best_match_index = i;
+    }
+  }
+
+
+  if(lowest_match_result != INT_MAX)
+  {
+    Scalar color = Scalar(0,255,0);
+    drawContours(src_frame_color,frame_contours,best_match_index,color,4,8,shape_hierarchy,0,Point(0,0));
+    imshow("Tracking",src_frame_color);
+    cout << "lowest_match_result = " << lowest_match_result << "\t frame: " << frame_number << endl;
+  }
+  else
+    cout << "lowest_match_result = INT_MAX \t frame: " << frame_number << endl;
+
+  match_results.clear();
+  frame_contours.clear();
+  frame_number++;
 
   return position;
 }
 
 void drone_tracking::load_shape_im()
 {
-  bool debug = true;
+  bool debug = false;
   Mat shape_im = imread(SHAPE_IM_PATH,CV_LOAD_IMAGE_GRAYSCALE);   // Load shape image in gray scale
 
   // for debug:
