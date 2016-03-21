@@ -45,13 +45,14 @@ private: // Variables
   VideoCapture capture;
 
   int global_frame_counter = 0;
+  int start_skip_frames = 0;
 
   // show_frame
   bool window_enable = true;
   vector<string> window_names; // Holds the window names but no values can be added here, must be added in the method.
   bool custom_window_size = true;
-  int custom_window_width = 400;
-  int custom_window_height = 300;
+  int custom_window_width = 600;
+  int custom_window_height = 400;
   int screen_dimension_width = 1280; //HD: 1080; FULL-HD: 1920; Other: 1280
   int screen_dimension_height = 800; //HD: 800 (or 720); FULL-HD: 1200 (or 1080); Other: 800
   // frame_save
@@ -80,12 +81,12 @@ private: // Variables
   Mat mask_circles;
   Mat frame_temp;
 
-  int mean_multiply_factor = 100; //Effects the one below linear
-  double color_threashold = 0.010;
+  int mean_multiply_factor = 1000000; //Effects the one below linear
+  int color_threashold = 110;
   int hue_radius = 20; // [%]
 
-  bool enable_wait = false;
-  int wait_time_ms = 100;
+  bool enable_wait = true;
+  int wait_time_ms = 1000;
 
   bool test_bool = true;
 
@@ -132,7 +133,9 @@ drone_tracking::drone_tracking(string filenameIn)
       capture >> frame_bgr;
       if(frame_bgr.empty())
         break;
-      frame_analysis(); // Master method for analysis
+      if (start_skip_frames < global_frame_counter)
+        frame_analysis(); // Master method for analysis
+      global_frame_counter++;
       if(waitKey(10) >= 0)
         break;
     }
@@ -153,8 +156,8 @@ void drone_tracking::create_windows()
 {
   window_names.push_back("Input stream"); //Window 1
   window_names.push_back("Recognized red LEDs"); //Window 2
-  //window_names.push_back("Red mask"); //Window 3
-  //window_names.push_back("Other"); //Window 4
+  window_names.push_back("Red mask"); //Window 3
+  window_names.push_back("Red frame"); //Window 4
   //window_names.push_back("Other2"); //Window 5
   //window_names.push_back("Other3"); //Window 6
   //window_names.push_back("Window N"); //Window N
@@ -174,6 +177,12 @@ void drone_tracking::create_windows()
         }
       } else
         namedWindow(window_names[i],WINDOW_AUTOSIZE);
+      if (i==1) {
+         createTrackbar("Threashold", window_names[i], &color_threashold, 1000);
+      }
+      if (i==3) {
+         createTrackbar("Dilate iterations", window_names[i], &dilate_color_iterations, 10);
+      }
     }
   }
 }
@@ -186,7 +195,8 @@ void drone_tracking::show_frame(string window_text, Mat in_frame)
 ******************************************************************************/
 {
   if (window_enable)
-    imshow(window_text, in_frame);
+    if (!in_frame.empty())
+      imshow(window_text, in_frame);
 }
 
 void drone_tracking::frame_analysis()
@@ -199,7 +209,6 @@ void drone_tracking::frame_analysis()
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
   show_frame(window_names[0], frame_bgr);
-  global_frame_counter++;
   cout << endl << "Frame: " << global_frame_counter << endl;
   diode_detection();
 }
@@ -283,6 +292,7 @@ void drone_tracking::diode_detection()
 
   //mask_circles
   double mean_of_frame = 0;
+  int red_diodes = 0;
   if (keypoints.size())
   {
     for (size_t i = 0; i < keypoints.size(); i++) {
@@ -293,20 +303,23 @@ void drone_tracking::diode_detection()
       circle(mask_circles, keypoints[i].pt, keypoints[i].size * 1+(hue_radius/100), Scalar(255), -1); // Draw a circle
       frame_temp = Scalar(0);
       mask_red.copyTo(frame_temp, mask_circles);
-      mean_of_frame = mean(frame_temp)[0]/(pow(keypoints[i].size,2)*M_PI)*mean_multiply_factor;
+      mean_of_frame = (mean(frame_temp)[0]/(pow(keypoints[i].size,2)*M_PI))*mean_multiply_factor;
+      cout << "Number " << i << " " << mean_of_frame << endl;
       if (mean_of_frame > color_threashold) {
         circle(im_with_keypoints, keypoints[i].pt, keypoints[i].size, Scalar(255-(i*10), 0, 0), keypoints[i].size+(hue_radius/100));
-        cout << "Red LED at position: " << keypoints[i].pt << endl;
+        red_diodes++;
+        //cout << "Red LED at position: " << keypoints[i].pt << endl;
       }
     }
+    cout << "Red LEDs: " << red_diodes << endl;
     cout << endl;
   }
   // Show blobs
   show_frame(window_names[1], im_with_keypoints);
   frame_save(im_with_keypoints);
 
-  //show_frame(window_names[2], frame_red);
-  //show_frame(window_names[3], frame_gray);
+  show_frame(window_names[2], frame_red);
+  show_frame(window_names[3], mask_circles);
   //show_frame(window_names[4], frame_hsv);
   //show_frame(window_names[5], frame_gray_with_Gblur);
 
