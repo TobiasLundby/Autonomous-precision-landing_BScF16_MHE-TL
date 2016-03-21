@@ -32,8 +32,9 @@ public: // Methods
   drone_tracking();
   drone_tracking(string);
 private: // Methods
-  void show_frame(string, Mat);
+  void show_frame(string, Mat); //Use window_names to point to the name
   void frame_analysis();
+  void create_windows();
   void frame_save(Mat&);
   void frame_save(Mat&, string);
   void diode_detection();
@@ -42,10 +43,15 @@ private: // Variables
   string filename;
   Mat frame_bgr;
   VideoCapture capture;
-  string video_window_text = "Drone tracking";
 
   int global_frame_counter = 0;
 
+  // show_frame
+  bool window_enable = true;
+  vector<string> window_names; // Holds the window names but no values can be added here, must be added in the method.
+  bool custom_window_size = true;
+  int custom_window_width = 400;
+  int custom_window_height = 300;
   // frame_save
   int frame_save_counter = 1;
   string frame_save_type = "png";
@@ -119,6 +125,7 @@ drone_tracking::drone_tracking(string filenameIn)
 
   if(capture.isOpened()) { // Test if capture is opened
     cout << "Capture is opened" << endl;
+    create_windows();
     for(;;) { // Processing
       capture >> frame_bgr;
       if(frame_bgr.empty())
@@ -135,14 +142,40 @@ drone_tracking::drone_tracking(string filenameIn)
   }
 }
 
+void drone_tracking::create_windows()
+/*****************************************************************************
+*   Input    : None
+*   Output   : None
+*   Function : Creates the windows specified in the vector.
+******************************************************************************/
+{
+  if (window_enable)
+  {
+    window_names.push_back("Input stream"); //Window 1
+    window_names.push_back("Recognized red LEDs"); //Window 2
+    //window_names.push_back("Window N"); //Window N
+
+    for (size_t i = 0; i < window_names.size(); i++) {
+      if (custom_window_size)
+      {
+        cout << "heps" << endl;
+        namedWindow(window_names[i],WINDOW_NORMAL);
+        resizeWindow(window_names[i], custom_window_width, custom_window_height);
+      } else
+        namedWindow(window_names[i],WINDOW_AUTOSIZE);
+    }
+  }
+}
+
 void drone_tracking::show_frame(string window_text, Mat in_frame)
 /*****************************************************************************
 *   Input    : None
 *   Output   : None
-*   Function : Displays video
+*   Function : Displays the given frame
 ******************************************************************************/
 {
-  imshow(window_text, in_frame);
+  if (window_enable)
+    imshow(window_text, in_frame);
 }
 
 void drone_tracking::frame_analysis()
@@ -154,10 +187,34 @@ void drone_tracking::frame_analysis()
 {
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
-  //show_frame(video_window_text, frame_bgr);
+  show_frame(window_names[0], frame_bgr);
   global_frame_counter++;
   cout << endl << "Frame: " << global_frame_counter << endl;
   diode_detection();
+}
+
+void drone_tracking::frame_save(Mat& frame_in)
+/*****************************************************************************
+*   Input    : The actual frame
+*   Output   : None (void)
+*   Function : Saves the frame with an automatically generated name. NOTE the folders 'output', 'images', and 'videos' must exist
+******************************************************************************/
+{
+  string name;
+  name = string("frame-") + to_string(frame_save_counter);
+  frame_save_counter++;
+  frame_save(frame_in, name);
+}
+
+void drone_tracking::frame_save(Mat& frame_in, string name_in)
+/*****************************************************************************
+*   Input    : The actual frame and a name WITHOUT file extension
+*   Output   : None (void)
+*   Function : Saves the frame. NOTE the folders 'output', 'images', and 'videos' must exist
+******************************************************************************/
+{
+  name_in += "." + frame_save_type;
+  imwrite( "./output/images/"+name_in, frame_in );
 }
 
 void drone_tracking::diode_detection()
@@ -213,26 +270,6 @@ void drone_tracking::diode_detection()
 
   cvtColor(frame_red, frame_red_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
 
-  // int total_avg_hue_value;
-  // if (keypoints.size()) {
-  //   for (size_t i = 0; i < keypoints.size(); i++) {
-  //     int iterations = 0;
-  //     int avg_hue_value = 0;
-  //     for (int j = 1; j < keypoints[i].size; j++) {
-  //       iterations++;
-  //       avg_hue_value += midpoint_circle_algorithm(mask_red, keypoints[i].pt.x, keypoints[i].pt.y, j);
-  //       circle(im_with_keypoints, keypoints[i].pt, j, Scalar(0, 255, 0), 1);
-  //     }
-  //     total_avg_hue_value = avg_hue_value / iterations;
-  //     if (total_avg_hue_value > 10) {
-  //     //  cout << "Fucking red diode" << endl;
-  //       circle(im_with_keypoints, keypoints[i].pt, keypoints[i].size, Scalar(255-(i*10), 0, 0), keypoints[i].size *1.5);
-  //     }
-  //     //cout << "Index " << i << " has avg value " << total_avg_hue_value << endl;
-  //     //circle(im_with_keypoints, keypoints[i].pt, keypoints[i].size, Scalar(255-(i*10), 0, 0), keypoints[i].size);
-  //   }
-  // }
-
   //mask_circles
   double mean_of_frame = 0;
   if (keypoints.size())
@@ -256,35 +293,11 @@ void drone_tracking::diode_detection()
     cout << endl;
   }
   // Show blobs
-  show_frame("Recognized red LEDs", im_with_keypoints);
+  show_frame(window_names[1], im_with_keypoints);
   frame_save(im_with_keypoints);
 
   //show_frame("Channel frame", frame_red_split[0]);
   //show_frame("Red frame", frame_red);
-}
-
-void drone_tracking::frame_save(Mat& frame_in)
-/*****************************************************************************
-*   Input    : The actual frame
-*   Output   : None (void)
-*   Function : Saves the frame with an automatically generated name. NOTE the folders 'output', 'images', and 'videos' must exist
-******************************************************************************/
-{
-  string name;
-  name = string("frame-") + to_string(frame_save_counter);
-  frame_save_counter++;
-  frame_save(frame_in, name);
-}
-
-void drone_tracking::frame_save(Mat& frame_in, string name_in)
-/*****************************************************************************
-*   Input    : The actual frame and a name WITHOUT file extension
-*   Output   : None (void)
-*   Function : Saves the frame. NOTE the folders 'output', 'images', and 'videos' must exist
-******************************************************************************/
-{
-  name_in += "." + frame_save_type;
-  imwrite( "./output/images/"+name_in, frame_in );
 }
 
 // int drone_tracking::dummy_function()
