@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "uav_locator_inc.cpp"
+//#include "uav_locator_inc.cpp"
 
 
 
@@ -34,25 +34,30 @@ using namespace std;
 # define M_PI           3.14159265358979323846  /* pi */
 
 // Drone shape tracking
-#define SHAPE_IM_PATH       "src/shape.jpg"
+  // Load shape
+#define SHAPE_IM_PATH       "src/shape.jpg" // Path to template image
 #define SHAPE_CONTOUR_INDEX 0
 
+  // Erosion and dilation
 #define EROSION_TYPE        MORPH_ELLIPSE // MORPH_RECT MORPH_CROSS MORPH_ELLIPSE
-#define EROSION_SIZE        1             //1
-#define ERODE_ITERATIONS    2             // 2 finds shape_contour and removes stick
+#define EROSION_SIZE        1
+#define ERODE_ITERATIONS    2
 #define DILATION_TYPE       MORPH_ELLIPSE // MORPH_RECT MORPH_CROSS MORPH_ELLIPSE
-#define DILATION_SIZE       EROSION_SIZE             //1
-#define DILATE_ITERATIONS   2             // 4 finds shape_contour and removes stick
+#define DILATION_SIZE       EROSION_SIZE
+#define DILATE_ITERATIONS   2
 
-#define THRESH_THRESH       60              //40
-#define THRESH_MAXVAL       255             //255
-#define THRESH_TYPE         THRESH_BINARY_INV   // THRESH_BINARY
+  // Thresholding image
+#define THRESH_THRESH       60
+#define THRESH_MAXVAL       255
+#define THRESH_TYPE         THRESH_BINARY_INV // If src(x,y)>TRESH_TRESH 0
+                                              // else THRESH_MAXVAL
 
-#define SHAPE_FOUND_THRESH  1
+#define SHAPE_FOUND_THRESH  1             // Value below is a match
 
-typedef struct xy_position{
-   int x;
-   int y;
+typedef struct xy_position{   // Struct for xy-position of drone
+   double x;
+   double y;
+   double orientation;
  } xy_position;
 
 
@@ -68,23 +73,15 @@ private: // Methods
   void frame_analysis();
 
   // Drone shape detection methods
-  void find_black_mask();
-  Mat subtract_background(Mat);
-  Mat canny_edge_detect(Mat);
-  void find_contours(Mat);
-  Mat remove_noise(Mat);
-  void subtract_background_manual(Mat);
-  Mat complete_drone_shape(Mat);
-  void load_shape();
-  void compare_shapes(Mat src);
   void simple_shape_tracking();
 
-  // Match shape
-   xy_position get_drone_position(Mat);
-   void load_shape_im();
-   vector<vector<Point>> get_contours(Mat);
-   Mat local_erode(Mat);
-   Mat local_dilate(Mat);
+  // Match shape methods
+  xy_position get_drone_position(Mat);
+  void load_shape_im();
+  vector<vector<Point>> get_contours(Mat);
+  Mat local_erode(Mat);
+  Mat local_dilate(Mat);
+  void get_position(vector<Point> contour, xy_position&);
 
 private: // Variables
   string filename;
@@ -92,20 +89,17 @@ private: // Variables
   VideoCapture capture;
   string video_window_text = "Drone tracking";
 
-//******************* DRONE SHAPE DETECTION ********************
+  // MatchShape variables
+  bool shape_loaded = false;        // True if shape is loaded
+  vector<vector<Point>> shape_contours, frame_contours; // Contours
+  vector<Vec4i> shape_hierarchy;    // Hierarchy
+  int frame_number = 0;             // Frame number for debug
 
-  // MatchShape detection
-  bool shape_loaded = false;
-  vector<vector<Point>> shape_contours, frame_contours;
-  vector<Vec4i> shape_hierarchy;          // NOTE: Temp, to be removed
-  int frame_number = 0;
+  bool wait_enable = true;
+  int wait_time = 100;
 
-
-
-  //http://docs.opencv.org/3.1.0/d1/dc5/tutorial_background_subtraction.html#gsc.tab=0
-  // Test change - not relevant
-  // Test 2
-
+  // Match shape constants
+  Scalar color_green = Scalar(0,255,0), color_red = Scalar(0,0,255);
 
 };
 
@@ -119,18 +113,11 @@ drone_tracking::drone_tracking()
 
 drone_tracking::drone_tracking(string filenameIn)
 /*****************************************************************************
-*   Input    : (int) number of commandline arguments
-*            : (char**) commandline arguments
+*   Input    : Filename
 *   Output   : None
 *   Function : Overload constructor
 ******************************************************************************/
 {
-  //******* Init *******
-//  MOG2 = createBackgroundSubtractorMOG2();  // Create background subtractor
-//  KNN = createBackgroundSubtractorKNN();
-  //********************
-
-
   filename = filenameIn;
   // Open specified video file or webcam
   if(filename=="") { // If filename is webcam
@@ -146,7 +133,6 @@ drone_tracking::drone_tracking(string filenameIn)
 
   if(capture.isOpened()) { // Test if capture is opened
     cout << "Capture is opened" << endl;
-    //load_shape();     // MUST BE PLACED SOMEWHERE ELSE
     for(;;) { // Processing
       capture >> frame_bgr;
       if(frame_bgr.empty())
@@ -182,20 +168,11 @@ void drone_tracking::frame_analysis()
 ******************************************************************************/
 {
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
-  // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
-  //find_black_mask();
-  //subtract_background_manual(frame_bgr);
-  //subtract_background(frame_bgr);
-  //remove_noise(frame_foreground);
-  //Mat canny_result = canny_edge_detect(frame_foreground);
-  //find_contours(canny_output);
-  //show_frame(video_window_text, frame_bgr);
-  //load_shape();
-  //compare_shapes(frame_bgr);
-  //simple_shape_tracking();
-  waitKey(200);
-  get_drone_position(frame_bgr);
+
   //locate_uav(frame_bgr);
+  //simple_shape_tracking();
+  get_drone_position(frame_bgr);
+
 
 }
 
@@ -294,159 +271,249 @@ void drone_tracking::simple_shape_tracking()
 
 
 xy_position drone_tracking::get_drone_position(Mat src_frame_in)
-// With inspiration from code written by Stig Halfdan Juhl Turner
+/*****************************************************************************
+*   Input    : The current frame as a Mat
+*   Output   : Struct with position
+*   Function : Finds position of the drone in the frame by matching contours
+*              in the frame with the contour of the drone from a template image.
+*              Written with inspiration from/based on code written by Stig
+*              Halfdan Juhl Turner. This also holds for the functions that are
+*              called from get_drone_position.
+******************************************************************************/
 {
+  if(wait_enable)
+    waitKey(wait_time);                         // Wait so visual debugging is possible
   // Prepare the frame for tracking
   bool debug = false;
-  Mat src_frame_color, src_frame_gray;
+  Mat src_frame_color, src_frame_gray;  // A frame for color and gray
   src_frame_in.copyTo(src_frame_color); // Make sure not to alter original frame
-  cvtColor(src_frame_color,src_frame_gray,COLOR_BGR2GRAY);
+  cvtColor(src_frame_color,src_frame_gray,COLOR_BGR2GRAY);  // Convert to gray
 
   // Variables
-  xy_position position;
-  vector<double> match_results;
-  double lowest_match_result = INT_MAX;
-  int best_match_index;
+  xy_position position;                   // Return struct
+  vector<double> match_results;           // Values from match
+  double lowest_match_result = INT_MAX;   // No match at the beginning
+  int best_match_index;                   // Best match (if any)
 
   // Load shape
   if(!shape_loaded)   // Shape must be loaded first
     load_shape_im();
 
   //Find contours in frame
-  frame_contours = get_contours(src_frame_gray);
+  frame_contours = get_contours(src_frame_gray);  // Find all contours in frame
 
+  /*************** DEBUG ******************************************************/
   if(debug)
   {
+    // Print number of contours
     cout << "Frame contours: " << frame_contours.size() << endl;
-    Scalar color = Scalar(0,255,0);
-    drawContours(src_frame_color,shape_contours,-1,color,1,8,shape_hierarchy,
+    // Show all contours
+    drawContours(src_frame_color,shape_contours,-1,color_green,1,8,shape_hierarchy,
       0,Point(0,0));
     //namedWindow("Frame contours", WINDOW_FREERATIO);
     show_frame("Frame contours", src_frame_color);
   }
+  /*********** END DEBUG ******************************************************/
 
-  for(int i = 0; i < frame_contours.size(); i++)
+  // Match shape contour with found contours
+  for(int i = 0; i < frame_contours.size(); i++)  // For all found contours
   {
     match_results.push_back(matchShapes(shape_contours[SHAPE_CONTOUR_INDEX],
-       frame_contours[i], CV_CONTOURS_MATCH_I1, 0));
+       frame_contours[i], CV_CONTOURS_MATCH_I1, 0));  // Match them
   }
 
+  // Find match with lovest value (0 is two identical contours)
   for(int i = 0; i < static_cast<int>(match_results.size()); i++)
   {
-    if(match_results[i] < lowest_match_result
-      && match_results[i] < SHAPE_FOUND_THRESH)
+    if(match_results[i] < lowest_match_result  // Current value less than lowest
+      && match_results[i] < SHAPE_FOUND_THRESH) // & it is a match
     {
-      lowest_match_result = match_results[i];
-      best_match_index = i;
+      lowest_match_result = match_results[i];   // Update lowest
+      best_match_index = i;                     // Save the index
     }
   }
 
-
-  if(lowest_match_result != INT_MAX)
+  // Process the match
+  if(lowest_match_result != INT_MAX)            // If a match is found
   {
-    Scalar color = Scalar(0,255,0);
-    drawContours(src_frame_color,frame_contours,best_match_index,color,4,8,shape_hierarchy,0,Point(0,0));
-    imshow("Tracking",src_frame_color);
-    cout << "lowest_match_result = " << lowest_match_result << "\t frame: " << frame_number << endl;
+    get_position(frame_contours[best_match_index], position); //Get its position
+    drawContours(src_frame_color,frame_contours,best_match_index,
+      color_green,4,8,shape_hierarchy,0,Point(0,0));  // Draw the shape (drone)
+    circle(src_frame_color, Point2f(position.x,position.y), 4,
+      color_red, -1, 8, 0); // Draw center of shape (mass_center)
+    imshow("Tracking",src_frame_color); // Show the result
+    // Print information
+    cout << "lowest_match_result = " << lowest_match_result << " x: "
+      << position.x << " y: " << position.y  << " O: " << position.orientation
+      << "\t frame: " << frame_number  << endl;
   }
-  else
-    cout << "lowest_match_result = INT_MAX \t frame: " << frame_number << endl;
+  else    // No match is found
+    cout << "lowest_match_result = INT_MAX -> no match \t frame: "
+    << frame_number << endl;  // Print no match
 
-  match_results.clear();
-  frame_contours.clear();
-  frame_number++;
+  match_results.clear();      // Delete results
+  frame_contours.clear();     // Delete contours
+  frame_number++;             // Increment framenumber (MAY FAIL!)
 
   return position;
 }
 
 void drone_tracking::load_shape_im()
+/*****************************************************************************
+*   Input    : None
+*   Output   : None
+*   Function : Loads the template image frame and finds contours in it. Contours
+*              are stored to shape_contours. Sets shape_loaded = true.
+******************************************************************************/
 {
   bool debug = false;
-  Mat shape_im = imread(SHAPE_IM_PATH,CV_LOAD_IMAGE_GRAYSCALE);   // Load shape image in gray scale
 
-  // for debug:
-
-    Mat shape_im_color = imread(SHAPE_IM_PATH);
-    Mat shape_contour0, shape_contour1;
-    shape_im_color.copyTo(shape_contour0);
-    shape_im_color.copyTo(shape_contour1);
-  if(debug)
-  {
-    show_frame("Shape frame", shape_im);
-  }
-  // end debug
-
+  // Load shape image in gray scale
+  Mat shape_im = imread(SHAPE_IM_PATH,CV_LOAD_IMAGE_GRAYSCALE);
 
   shape_contours = get_contours(shape_im);      // Get contours in shape_im
 
-  Scalar color = Scalar(0,255,0);
-  for(int i=0;i<shape_contours.size();i++)
-  {
-    drawContours(shape_im_color,shape_contours,i,color,1,8,shape_hierarchy,0,Point(0,0));
-  }
+  shape_loaded = true;      // Mark shape as loaded
 
-
-  // debug
+  /*************** DEBUG ******************************************************/
   if(debug)
   {
-    cout << shape_contours.size() << endl;
-    namedWindow("Contours on shape frame", WINDOW_FREERATIO);
-    show_frame("Contours on shape frame", shape_im_color);
+    Mat shape_im_color = imread(SHAPE_IM_PATH); // Read frame in color
+    Mat shape_contour0, shape_contour1;         // Frame for contour[0] and [1]
+    shape_im_color.copyTo(shape_contour0);      // Copy color frame to the new
+    shape_im_color.copyTo(shape_contour1);      // frames
 
-    drawContours(shape_contour0,shape_contours,0,color,1,8,shape_hierarchy,0,Point(0,0));
-    drawContours(shape_contour1,shape_contours,1,color,1,8,shape_hierarchy,0,Point(0,0));
+    show_frame("Shape frame", shape_im);        // Show gray scale shape frame
+
+    for(int i=0;i<shape_contours.size();i++)    // For all contours in frame
+    {
+      drawContours(shape_im_color,shape_contours,i,color_green,1,8,
+        shape_hierarchy,0,Point(0,0));  // Draw it on color frame
+    }
+
+    cout << shape_contours.size() << endl;      // Print number of contours
+    namedWindow("Contours on shape frame", WINDOW_FREERATIO);
+    show_frame("Contours on shape frame", shape_im_color);  // Show color frame
+
+    drawContours(shape_contour0,shape_contours,0,color_green,4,8,
+      shape_hierarchy,0,Point(0,0));  // Draw contour0 on contour[0]
+    drawContours(shape_contour1,shape_contours,1,color_green,4,8,
+      shape_hierarchy,0,Point(0,0));  // Draw contour1 on contour[1]
     namedWindow("Contour0", WINDOW_FREERATIO);
     namedWindow("Contour1", WINDOW_FREERATIO);
-    show_frame("Contour0", shape_contour0);
+    show_frame("Contour0", shape_contour0); // Show frames with contour[0] and 1
     show_frame("Contour1", shape_contour1);
+
   }
-  // end debug
-
-  shape_loaded = true;
-
+  /*********** END DEBUG ******************************************************/
 }
 
 vector<vector<Point>> drone_tracking::get_contours(Mat src_in)
+/*****************************************************************************
+*   Input    : Mat with frame to find contours in
+*   Output   : Vector with contours (each index is a vector with points)
+*   Function : Finds contours in src_in. Erodes and dilates frame before
+*              contours are found.
+******************************************************************************/
 {
-  Mat src;
-  src_in.copyTo(src);
-  vector<vector<Point>> local_contours;
-  vector<Vec4i> local_hierarchy;
-  threshold(src, src, THRESH_THRESH, THRESH_MAXVAL, THRESH_TYPE);
-  namedWindow("Thresholded frame",WINDOW_FREERATIO);
-  show_frame("Thresholded frame",src);
-  local_erode(src);
-  local_dilate(src);
-  findContours(src, local_contours, local_hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-  shape_hierarchy = local_hierarchy;      // Temporary test. Should be removed.
-  return local_contours;
+  bool debug = false;
+  Mat src;                              // Don't alter src_in -> make a new mat
+  src_in.copyTo(src);                   // Copy src_in to src
+  vector<vector<Point>> local_contours; // Contours found
+  vector<Vec4i> local_hierarchy;        // Hierarchy of contours
 
+  // Threshold src and store result in src
+  threshold(src, src, THRESH_THRESH, THRESH_MAXVAL, THRESH_TYPE);
+
+  if(debug)
+  {
+    namedWindow("Thresholded frame",WINDOW_FREERATIO);
+    show_frame("Thresholded frame",src);  // Show the thresholded frame
+  }
+  local_erode(src);                     // Erode
+  local_dilate(src);                    // Dilate
+
+  // Find contours in src, store in local_contours and local_hieararchy
+  // Organize contours in tree structure and make lines where possible (only two
+  // points for a line)
+  findContours(src, local_contours, local_hierarchy, CV_RETR_TREE,
+    CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+  shape_hierarchy = local_hierarchy;      //Necessary to draw contours elsewhere
+
+  return local_contours;
 }
 
 Mat drone_tracking::local_erode(Mat src)
-// Based on http://docs.opencv.org/2.4/doc/tutorials/imgproc/erosion_dilatation/erosion_dilatation.html
-{
-  Mat element = getStructuringElement(EROSION_TYPE,
-                                     Size(2*EROSION_SIZE + 1, 2*EROSION_SIZE+1),
-                                     Point(EROSION_SIZE, EROSION_SIZE));
+/*****************************************************************************
+*   Input    : Mat to be eroded
+*   Output   : Mat
+*   Function : Erodes mat based on definitions in start of module. Based on
+*              http://docs.opencv.org/2.4/doc/tutorials/imgproc/erosion_dilatation/erosion_dilatation.html
+******************************************************************************/
 
-  erode(src, src, element, Point(-1,-1), ERODE_ITERATIONS);
-  namedWindow("Erode", CV_WINDOW_FREERATIO);
-  show_frame("Erode",src);
+{
+  bool debug = false;
+  // Make an element for eroding (its like the shape and size)
+  Mat element = getStructuringElement(EROSION_TYPE,
+    Size(2*EROSION_SIZE + 1, 2*EROSION_SIZE+1),
+    Point(EROSION_SIZE, EROSION_SIZE));
+
+  erode(src, src, element, Point(-1,-1), ERODE_ITERATIONS);  // Erode from center
+
+  /*************** DEBUG ******************************************************/
+  if(debug)
+  {
+    namedWindow("Erode", CV_WINDOW_FREERATIO);
+    show_frame("Erode",src);                    // Show the result
+  }
+  /*********** END DEBUG ******************************************************/
+
   return src;
 }
 
 Mat drone_tracking::local_dilate(Mat src)
-// Based on http://docs.opencv.org/2.4/doc/tutorials/imgproc/erosion_dilatation/erosion_dilatation.html
+/*****************************************************************************
+*   Input    : Mat to be dilated
+*   Output   : Mat
+*   Function : Dilates mat based on definitions in start of module. Based on
+*              http://docs.opencv.org/2.4/doc/tutorials/imgproc/erosion_dilatation/erosion_dilatation.html
+******************************************************************************/
 {
-  Mat element = getStructuringElement( DILATION_TYPE,
-                                       Size(2*DILATION_SIZE+1, 2*DILATION_SIZE+1),
-                                       Point(DILATION_SIZE, DILATION_SIZE));
+  bool debug = false;
+  // Make an element for dilating (its like the shape and size)
+  Mat element = getStructuringElement(DILATION_TYPE,
+    Size(2*DILATION_SIZE+1, 2*DILATION_SIZE+1),
+    Point(DILATION_SIZE, DILATION_SIZE));
 
-  dilate(src, src, element, Point(-1,-1), DILATE_ITERATIONS);
-  namedWindow("Dilate", CV_WINDOW_FREERATIO);
-  show_frame("Dilate", src);
+  dilate(src, src, element, Point(-1,-1), DILATE_ITERATIONS); //Dilate from center
+
+  /*************** DEBUG ******************************************************/
+  if(debug)
+  {
+    namedWindow("Dilate", CV_WINDOW_FREERATIO);
+    show_frame("Dilate", src);                // Show result
+  }
+  /*********** END DEBUG ******************************************************/
+
   return src;
+}
+
+void drone_tracking::get_position(vector<Point> contour, xy_position &pos)
+/*****************************************************************************
+*   Input    : Contour in vector (vector of points)
+             : Struct for x-y position
+*   Output   : None
+*   Function : Calculates center of drone from center of contour. Based on
+*              http://docs.opencv.org/2.4/doc/tutorials/imgproc/shapedescriptors/moments/moments.html
+               http://stackoverflow.com/questions/14720722/binary-image-orientation
+******************************************************************************/
+{
+  Moments moment = moments(contour,false);  // Calculate moments
+  pos.x = moment.m10/moment.m00;            // Calculate x position
+  pos.y = moment.m01/moment.m00;            // Calculate y position
+  // Calculate orientation (may not be correct)
+  double orientation = 0.5 * atan(2 * moment.m11 / (moment.m20 - moment.m02));
+  pos.orientation = (orientation / M_PI) * 180;
 }
 
 
