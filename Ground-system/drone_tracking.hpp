@@ -38,6 +38,8 @@ private: // Methods
   void frame_save(Mat&);
   void frame_save(Mat&, string);
   void diode_detection();
+  vector<KeyPoint> keypoint_detection();
+  vector<KeyPoint> keypoint_filtering(vector<KeyPoint>, bool);
 
 private: // Variables
   string filename;
@@ -62,7 +64,7 @@ private: // Variables
   // Diode detection Variables
   // HSV limits for color seperation
   int hsv_h_red_base        = 160; //60 is for green
-  int hsv_h_red_sensitivity = 25;
+  int hsv_h_red_sensitivity = 24;
   int hsv_h_red_low         = hsv_h_red_base - hsv_h_red_sensitivity;
   int hsv_h_red_upper       = hsv_h_red_base + hsv_h_red_sensitivity;
   int hsv_s_red_low         = 100;
@@ -73,25 +75,30 @@ private: // Variables
   int dilate_color_iterations = 3;
   Mat frame_hsv;
   Mat frame_red;
-  Mat frame_red_hsv;
-  Mat frame_red_split[3];
   Mat frame_gray;
   Mat frame_gray_with_Gblur;
   Mat mask_red;
   Mat mask_circles;
   Mat frame_temp;
+  Mat im_with_keypoints;
+
+  // Setup SimpleBlobDetector parameters.
+	SimpleBlobDetector::Params params;
+  bool second_detection_run = false;
 
   int mean_multiply_factor = 1000000; //Effects the one below linear
-  int color_threashold = 110;
+  int color_threashold_1 = 110;
+  int color_threashold_2 = 80;
   int hue_radius = 20; // [%]
 
-  bool enable_wait = true;
-  int wait_time_ms = 1000;
+  bool enable_wait = false;
+  int wait_time_ms = 500;
 
   bool test_bool = true;
 
 	// Storage for blobs
-	vector<KeyPoint> keypoints;
+	//vector<KeyPoint> keypoints; not used any more
+  vector<KeyPoint> red_leds;
 
   double m, M;
   Point p_min, p_max;
@@ -133,8 +140,9 @@ drone_tracking::drone_tracking(string filenameIn)
       capture >> frame_bgr;
       if(frame_bgr.empty())
         break;
-      if (start_skip_frames < global_frame_counter)
-        frame_analysis(); // Master method for analysis
+      if (!frame_bgr.empty())
+        if (start_skip_frames < global_frame_counter)
+          frame_analysis(); // Master method for analysis
       global_frame_counter++;
       if(waitKey(10) >= 0)
         break;
@@ -178,7 +186,7 @@ void drone_tracking::create_windows()
       } else
         namedWindow(window_names[i],WINDOW_AUTOSIZE);
       if (i==1) {
-         createTrackbar("Threashold", window_names[i], &color_threashold, 1000);
+         createTrackbar("Threashold", window_names[i], &color_threashold_1, 1000);
       }
       if (i==3) {
          createTrackbar("Dilate iterations", window_names[i], &dilate_color_iterations, 10);
@@ -208,7 +216,7 @@ void drone_tracking::frame_analysis()
 {
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
-  show_frame(window_names[0], frame_bgr);
+  //show_frame(window_names[0], frame_bgr);
   cout << endl << "Frame: " << global_frame_counter << endl;
   diode_detection();
 }
@@ -234,7 +242,8 @@ void drone_tracking::frame_save(Mat& frame_in, string name_in)
 ******************************************************************************/
 {
   name_in += "." + frame_save_type;
-  imwrite( "./output/images/"+name_in, frame_in );
+  if (!frame_in.empty())
+    imwrite( "./output/images/"+name_in, frame_in );
 }
 
 void drone_tracking::diode_detection()
@@ -251,75 +260,26 @@ void drone_tracking::diode_detection()
   cvtColor(frame_bgr, frame_gray, COLOR_BGR2GRAY); //Convert the captured frame from BGR to HSV
   GaussianBlur(frame_gray, frame_gray_with_Gblur, Size(gaussian_blur, gaussian_blur), 0); // Gaussian blur on gray frame
 
-  // Setup SimpleBlobDetector parameters.
-	SimpleBlobDetector::Params params;
-  // Change thresholds
-	//params.minThreshold = 0;
-	//params.maxThreshold = 100;
-  params.blobColor = 255;
-	// Filter by Area.
-	params.filterByArea = true;
-	params.minArea = 5;
-  params.maxArea = 300;
-	// Filter by Circularity
-	params.filterByCircularity = false;
-	params.minCircularity = 0.5;
-	// Filter by Convexity
-	params.filterByConvexity = false;
-	params.minConvexity = 0.87;
-	// Filter by Inertia
-	params.filterByInertia = false;
-	params.minInertiaRatio = 0.01;
-
-  // Set up detector with params
-	Ptr<SimpleBlobDetector> detector = SimpleBlobDetector::create(params);
-	// Detect blobs
-	detector->detect(frame_gray_with_Gblur, keypoints);
-  Mat im_with_keypoints;
-	drawKeypoints( frame_gray_with_Gblur, keypoints, im_with_keypoints, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
-
-  //cout << "There are " << keypoints.size() << " keypoints" << endl;
-
   inRange(frame_hsv, Scalar(hsv_h_red_low,hsv_s_red_low,hsv_v_red_low), Scalar(hsv_h_red_upper, hsv_s_red_upper, hsv_v_red_upper), mask_red);
   frame_red = Scalar(0);
   for (size_t i = 0; i < dilate_color_iterations; i++)
     dilate(mask_red, mask_red, Mat(), Point(-1,-1)); // Enhance the red areas in the image
   frame_bgr.copyTo(frame_red, mask_red);
 
-  split(frame_red,frame_red_split);
+  red_leds = keypoint_detection();
 
-  cvtColor(frame_red, frame_red_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
-
-  //mask_circles
-  double mean_of_frame = 0;
-  int red_diodes = 0;
-  if (keypoints.size())
-  {
-    for (size_t i = 0; i < keypoints.size(); i++) {
-      //for (size_t i = 3; i < 4; i++) {
-      putText(im_with_keypoints, to_string(i), keypoints[i].pt, FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0));
-      mask_circles = mask_red.clone(); // Just to get the proper size
-      mask_circles = Scalar(0); // Image data clear
-      circle(mask_circles, keypoints[i].pt, keypoints[i].size * 1+(hue_radius/100), Scalar(255), -1); // Draw a circle
-      frame_temp = Scalar(0);
-      mask_red.copyTo(frame_temp, mask_circles);
-      mean_of_frame = (mean(frame_temp)[0]/(pow(keypoints[i].size,2)*M_PI))*mean_multiply_factor;
-      cout << "Number " << i << " " << mean_of_frame << endl;
-      if (mean_of_frame > color_threashold) {
-        circle(im_with_keypoints, keypoints[i].pt, keypoints[i].size, Scalar(255-(i*10), 0, 0), keypoints[i].size+(hue_radius/100));
-        red_diodes++;
-        //cout << "Red LED at position: " << keypoints[i].pt << endl;
-      }
-    }
-    cout << "Red LEDs: " << red_diodes << endl;
-    cout << endl;
+  cout << "There are " << red_leds.size() << " red LEDs" << endl;
+  if (second_detection_run) {
+    cout << "CODE SAYS OUTDOOR" << endl;
   }
+
+  show_frame(window_names[0], frame_bgr); // Already done before but since I'm writing on it, it is displayed again! BUT IT IS COMMENTED OUT THE OTHER PLACE
   // Show blobs
   show_frame(window_names[1], im_with_keypoints);
   frame_save(im_with_keypoints);
 
   show_frame(window_names[2], frame_red);
-  show_frame(window_names[3], mask_circles);
+  show_frame(window_names[3], mask_red);
   //show_frame(window_names[4], frame_hsv);
   //show_frame(window_names[5], frame_gray_with_Gblur);
 
@@ -327,6 +287,99 @@ void drone_tracking::diode_detection()
   //show_frame("Red frame", frame_red);
 }
 
+vector<KeyPoint> drone_tracking::keypoint_detection()
+/*****************************************************************************
+*   Input    : None (the frames are a part of the class). Uses frame_gray_with_Gblur and mask_red
+*   Output   : None (the frames are a part of the class)
+*   Function : Finds brighest points
+******************************************************************************/
+{
+  // Change thresholds
+  //params.minThreshold = 0;
+  //params.maxThreshold = 100;
+  params.blobColor = 255;
+  // Filter by Area.
+  params.filterByArea = true;
+  params.minArea = 3;
+  params.maxArea = 300;
+  // Filter by Circularity
+  params.filterByCircularity = false;
+  params.minCircularity = 0.5;
+  // Filter by Convexity
+  params.filterByConvexity = false;
+  params.minConvexity = 0.87;
+  // Filter by Inertia
+  params.filterByInertia = false;
+  params.minInertiaRatio = 0.01;
+
+  // Set up detector with params
+	Ptr<SimpleBlobDetector> detector = SimpleBlobDetector::create(params);
+
+  // Detect blobs
+  vector<KeyPoint> keypoints;
+  vector<KeyPoint> temp_keypoints;
+
+	detector->detect(frame_gray_with_Gblur, keypoints);
+
+  temp_keypoints = keypoint_filtering(keypoints, second_detection_run);
+
+  if (!temp_keypoints.size()) {
+    keypoints.clear();
+    detector->detect(mask_red, keypoints);
+    second_detection_run = true;
+    temp_keypoints = keypoint_filtering(keypoints, second_detection_run);
+  } else
+    second_detection_run = false;
+
+  im_with_keypoints = Scalar(0,0,0);
+  drawKeypoints( frame_gray_with_Gblur, keypoints, im_with_keypoints, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+
+  return temp_keypoints;
+}
+
+vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoints, bool outdoor)
+/*****************************************************************************
+*   Input    : None (the frames are a part of the class). Uses mask_circles
+*   Output   : None (the frames are a part of the class)
+*   Function : Filters the found keypoints
+******************************************************************************/
+{
+  vector<KeyPoint> out_keypoints;
+
+  //mask_circles
+  double mean_of_frame = 0;
+  int red_diodes = 0;
+  if (in_keypoints.size())
+  {
+    for (size_t i = 0; i < in_keypoints.size(); i++) {
+      //for (size_t i = 3; i < 4; i++) {
+      putText(frame_bgr, to_string(i), in_keypoints[i].pt, FONT_HERSHEY_PLAIN, 2, Scalar(0,255,0));
+      mask_circles = mask_red.clone(); // Just to get the proper size
+      mask_circles = Scalar(0); // Image data clear
+      circle(mask_circles, in_keypoints[i].pt, in_keypoints[i].size * 1+(hue_radius/100), Scalar(255), -1); // Draw a circle
+      frame_temp = Scalar(0);
+      mask_red.copyTo(frame_temp, mask_circles);
+      mean_of_frame = (mean(frame_temp)[0]/(pow(in_keypoints[i].size,2)*M_PI))*mean_multiply_factor;
+      cout << "Number " << i << " " << mean_of_frame << endl;
+
+      int color_threashold;
+      if (!outdoor)
+        color_threashold = color_threashold_1;
+      else
+        color_threashold = color_threashold_2;
+
+      if (mean_of_frame > color_threashold) {
+        circle(frame_bgr, in_keypoints[i].pt, in_keypoints[i].size, Scalar(255-(i*10), 0, 0), in_keypoints[i].size+(hue_radius/100));
+        red_diodes++;
+        out_keypoints.push_back(in_keypoints[i]);
+      }
+    }
+    //cout << "Red LEDs: " << red_diodes << endl;
+    cout << endl;
+  }
+
+  return out_keypoints;
+}
 // int drone_tracking::dummy_function()
 // /*****************************************************************************
 // *   Input    :
