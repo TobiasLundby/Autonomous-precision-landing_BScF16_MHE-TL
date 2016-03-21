@@ -52,6 +52,8 @@ private: // Variables
   bool custom_window_size = true;
   int custom_window_width = 400;
   int custom_window_height = 300;
+  int screen_dimension_width = 1280; //HD: 1080; FULL-HD: 1920; Other: 1280
+  int screen_dimension_height = 800; //HD: 800 (or 720); FULL-HD: 1200 (or 1080); Other: 800
   // frame_save
   int frame_save_counter = 1;
   string frame_save_type = "png";
@@ -149,18 +151,27 @@ void drone_tracking::create_windows()
 *   Function : Creates the windows specified in the vector.
 ******************************************************************************/
 {
+  window_names.push_back("Input stream"); //Window 1
+  window_names.push_back("Recognized red LEDs"); //Window 2
+  //window_names.push_back("Red mask"); //Window 3
+  //window_names.push_back("Other"); //Window 4
+  //window_names.push_back("Other2"); //Window 5
+  //window_names.push_back("Other3"); //Window 6
+  //window_names.push_back("Window N"); //Window N
   if (window_enable)
   {
-    window_names.push_back("Input stream"); //Window 1
-    window_names.push_back("Recognized red LEDs"); //Window 2
-    //window_names.push_back("Window N"); //Window N
-
+    int j = 0; // Secondary position counter
     for (size_t i = 0; i < window_names.size(); i++) {
       if (custom_window_size)
       {
-        cout << "heps" << endl;
         namedWindow(window_names[i],WINDOW_NORMAL);
         resizeWindow(window_names[i], custom_window_width, custom_window_height);
+        if ((i+1)*custom_window_width < screen_dimension_width) {
+          moveWindow(window_names[i], i*custom_window_width, 0);
+        } else {
+          moveWindow(window_names[i], j*custom_window_width, custom_window_height+40);
+          j++;
+        }
       } else
         namedWindow(window_names[i],WINDOW_AUTOSIZE);
     }
@@ -282,9 +293,7 @@ void drone_tracking::diode_detection()
       circle(mask_circles, keypoints[i].pt, keypoints[i].size * 1+(hue_radius/100), Scalar(255), -1); // Draw a circle
       frame_temp = Scalar(0);
       mask_red.copyTo(frame_temp, mask_circles);
-      //imshow("Temp", frame_temp );
       mean_of_frame = mean(frame_temp)[0]/(pow(keypoints[i].size,2)*M_PI)*mean_multiply_factor;
-      //cout << i << ": " << mean_of_frame << "\t";
       if (mean_of_frame > color_threashold) {
         circle(im_with_keypoints, keypoints[i].pt, keypoints[i].size, Scalar(255-(i*10), 0, 0), keypoints[i].size+(hue_radius/100));
         cout << "Red LED at position: " << keypoints[i].pt << endl;
@@ -295,6 +304,11 @@ void drone_tracking::diode_detection()
   // Show blobs
   show_frame(window_names[1], im_with_keypoints);
   frame_save(im_with_keypoints);
+
+  //show_frame(window_names[2], frame_red);
+  //show_frame(window_names[3], frame_gray);
+  //show_frame(window_names[4], frame_hsv);
+  //show_frame(window_names[5], frame_gray_with_Gblur);
 
   //show_frame("Channel frame", frame_red_split[0]);
   //show_frame("Red frame", frame_red);
