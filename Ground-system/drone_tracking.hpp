@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//#include "uav_locator_inc.hpp"
+#include "uav_locator_inc.cpp"
 
 
 
@@ -36,14 +36,15 @@ using namespace std;
 // Drone shape tracking
 #define SHAPE_IM_PATH       "src/shape.jpg"
 #define EROSION_TYPE        MORPH_ELLIPSE // MORPH_RECT MORPH_CROSS MORPH_ELLIPSE
-#define EROSION_SIZE        1             //1
-#define ERODE_ITERATIONS    2             // 2 finds shape_contour and removes stick
+//#define EROSION_SIZE        1             //1
+//#define ERODE_ITERATIONS    2             // 2 finds shape_contour and removes stick
 #define DILATION_TYPE       MORPH_ELLIPSE // MORPH_RECT MORPH_CROSS MORPH_ELLIPSE
 #define DILATION_SIZE       1             //1
-#define DILATE_ITERATIONS   4             // 4 finds shape_contour and removes stick
-#define THRESH_THRESH       40
-#define THRESH_MAXVAL       255
-#define THRESH_TYPE         THRESH_BINARY   // If s(x,y)>thresh s(x,y)=0 else THRESH_MAXVAL
+//#define DILATE_ITERATIONS   4             // 4 finds shape_contour and removes stick
+#define THRESH_THRESH       40              //40
+#define THRESH_MAXVAL       255             //255
+#define THRESH_TYPE         THRESH_BINARY_INV   // THRESH_BINARY
+
 
 struct xy_position{
    int x;
@@ -90,7 +91,7 @@ private: // Variables
 //******************* DRONE SHAPE DETECTION ********************
 
   // MatchShape detection
-  bool shape_loaded = 0;
+  bool shape_loaded = false;
   vector<vector<Point>> shape_contours, frame_contours;
   vector<Vec4i> shape_hierarchy;          // NOTE: Temp, to be removed
 
@@ -189,8 +190,9 @@ void drone_tracking::frame_analysis()
   //compare_shapes(frame_bgr);
   //simple_shape_tracking();
   waitKey(200);
-  get_drone_position(frame_bgr);
-  //locate_uav(frame_bgr);
+  cout << THRESH_TYPE << endl;
+  //get_drone_position(frame_bgr);
+  locate_uav(frame_bgr);
 
 }
 
@@ -351,10 +353,13 @@ void drone_tracking::load_shape_im()
   if(debug)
   {
     cout << shape_contours.size() << endl;
+    namedWindow("Contours on shape frame", WINDOW_FREERATIO);
     show_frame("Contours on shape frame", shape_im_color);
 
     drawContours(shape_contour0,shape_contours,0,color,1,8,shape_hierarchy,0,Point(0,0));
     drawContours(shape_contour1,shape_contours,1,color,1,8,shape_hierarchy,0,Point(0,0));
+    namedWindow("Contour0", WINDOW_FREERATIO);
+    namedWindow("Contour1", WINDOW_FREERATIO);
     show_frame("Contour0", shape_contour0);
     show_frame("Contour1", shape_contour1);
   }
@@ -371,10 +376,10 @@ vector<vector<Point>> drone_tracking::get_contours(Mat src_in)
   vector<vector<Point>> local_contours;
   vector<Vec4i> local_hierarchy;
   threshold(src, src, THRESH_THRESH, THRESH_MAXVAL, THRESH_TYPE);
+  namedWindow("Thresholded frame",WINDOW_FREERATIO);
+  show_frame("Thresholded frame",src);
   local_erode(src);
   local_dilate(src);
-  blur(src, src, Size(4,4),Point(-1,-1));
-  show_frame("Src blurred",src);
   findContours(src, local_contours, local_hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
   shape_hierarchy = local_hierarchy;      // Temporary test. Should be removed.
   return local_contours;
@@ -402,7 +407,7 @@ Mat drone_tracking::local_dilate(Mat src)
                                        Point(DILATION_SIZE, DILATION_SIZE));
 
   dilate(src, src, element, Point(-1,-1), DILATE_ITERATIONS);
-  //namedWindow("Dilate", CV_WINDOW_FREERATIO);
+  namedWindow("Dilate", CV_WINDOW_FREERATIO);
   show_frame("Dilate", src);
   return src;
 }
