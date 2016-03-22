@@ -36,28 +36,28 @@ using namespace std;
 // Drone shape tracking
   // Load shape
 #define SHAPE_IM_PATH       "src/shape.jpg" // Path to template image
-#define SHAPE_CONTOUR_INDEX 0
+#define SHAPE_CONTOUR_INDEX 0               // Index for shape contour in shape_contours
 
   // Erosion and dilation
-#define EROSION_TYPE        MORPH_ELLIPSE // MORPH_RECT MORPH_CROSS MORPH_ELLIPSE
-#define EROSION_SIZE        1
-#define ERODE_ITERATIONS    2
-#define DILATION_TYPE       MORPH_ELLIPSE // MORPH_RECT MORPH_CROSS MORPH_ELLIPSE
-#define DILATION_SIZE       EROSION_SIZE
+#define EROSION_TYPE        MORPH_ELLIPSE // From example in link in erode/dilate function: A filled ellipse
+#define EROSION_SIZE        1             // From example in link in erode/dilate function: Based on examples online and Stigs code
+#define ERODE_ITERATIONS    2             // From example in link in erode/dilate function: Based on examples online and Stigs code
+#define DILATION_TYPE       MORPH_ELLIPSE // From example in link in erode/dilate function: A filled ellipse
+#define DILATION_SIZE       EROSION_SIZE  // From example in link in erode/dilate function
 #define DILATE_ITERATIONS   2
 
   // Thresholding image
 #define THRESH_THRESH       60
 #define THRESH_MAXVAL       255
-#define THRESH_TYPE         THRESH_BINARY_INV // If src(x,y)>TRESH_TRESH 0
-                                              // else THRESH_MAXVAL
+#define THRESH_TYPE         THRESH_BINARY_INV // If src(x,y)>TRESH_TRESH: src(x,y)=0 else THRESH_MAXVAL // Chosen because it is used in Stig Turner's code.
+
 
 #define SHAPE_FOUND_THRESH  1             // Value below is a match
 
 typedef struct xy_position{   // Struct for xy-position of drone
    double x;
    double y;
-   double orientation;
+   double orientation;        // Might not be used. Not stable yet.
  } xy_position;
 
 
@@ -295,6 +295,10 @@ xy_position drone_tracking::get_drone_position(Mat src_frame_in)
   double lowest_match_result = INT_MAX;   // No match at the beginning
   int best_match_index;                   // Best match (if any)
 
+  // Zero initialize position
+  position.x = 0;
+  position.y = 0;
+
   // Load shape
   if(!shape_loaded)   // Shape must be loaded first
     load_shape_im();
@@ -309,7 +313,7 @@ xy_position drone_tracking::get_drone_position(Mat src_frame_in)
     cout << "Frame contours: " << frame_contours.size() << endl;
     // Show all contours
     drawContours(src_frame_color,shape_contours,-1,color_green,1,8,shape_hierarchy,
-      0,Point(0,0));
+      0,Point(0,0));    // 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
     //namedWindow("Frame contours", WINDOW_FREERATIO);
     show_frame("Frame contours", src_frame_color);
   }
@@ -319,7 +323,7 @@ xy_position drone_tracking::get_drone_position(Mat src_frame_in)
   for(int i = 0; i < frame_contours.size(); i++)  // For all found contours
   {
     match_results.push_back(matchShapes(shape_contours[SHAPE_CONTOUR_INDEX],
-       frame_contours[i], CV_CONTOURS_MATCH_I1, 0));  // Match them
+       frame_contours[i], CV_CONTOURS_MATCH_I1, 0));  // Match them             // Arguments in matchShapes. 1st aug: first contour, 2nd aug: second contour, 3rd aug: match type (I1 selected because it worked fine and was used various examples online), 4th aug: parameter that is not supported yet.
   }
 
   // Find match with lovest value (0 is two identical contours)
@@ -338,9 +342,9 @@ xy_position drone_tracking::get_drone_position(Mat src_frame_in)
   {
     get_position(frame_contours[best_match_index], position); //Get its position
     drawContours(src_frame_color,frame_contours,best_match_index,
-      color_green,4,8,shape_hierarchy,0,Point(0,0));  // Draw the shape (drone)
+      color_green,4,8,shape_hierarchy,0,Point(0,0));  // Draw the shape (drone) // 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
     circle(src_frame_color, Point2f(position.x,position.y), 4,
-      color_red, -1, 8, 0); // Draw center of shape (mass_center)
+      color_red, -1, 8, 0); // Draw center of shape (mass_center). Arguments - 1st aug: mat to draw in, 2nd aug: center point, 3rd aug: radius, 4th aug: color as a scalar, 5th aug: thickness (negative is filled circle), 6th aug: linetype (8 standard), 7th aug: number of fractional bits in the center coordinates and the radius value
 
     // Print information
     cout << "lowest_match_result = " << lowest_match_result << " x: "
@@ -371,7 +375,7 @@ void drone_tracking::load_shape_im()
 {
   bool debug = false;
 
-  // Load shape image in gray scale
+  // Load shape image in gray scale from SHAPE_IM_PATH
   Mat shape_im = imread(SHAPE_IM_PATH,CV_LOAD_IMAGE_GRAYSCALE);
 
   shape_contours = get_contours(shape_im);      // Get contours in shape_im
@@ -391,7 +395,7 @@ void drone_tracking::load_shape_im()
     for(int i=0;i<shape_contours.size();i++)    // For all contours in frame
     {
       drawContours(shape_im_color,shape_contours,i,color_green,1,8,
-        shape_hierarchy,0,Point(0,0));  // Draw it on color frame
+        shape_hierarchy,0,Point(0,0));  // Draw it on color frame. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
     }
 
     cout << shape_contours.size() << endl;      // Print number of contours
@@ -399,9 +403,9 @@ void drone_tracking::load_shape_im()
     show_frame("Contours on shape frame", shape_im_color);  // Show color frame
 
     drawContours(shape_contour0,shape_contours,0,color_green,4,8,
-      shape_hierarchy,0,Point(0,0));  // Draw contour0 on contour[0]
+      shape_hierarchy,0,Point(0,0));  // Draw contour0 on contour[0]. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
     drawContours(shape_contour1,shape_contours,1,color_green,4,8,
-      shape_hierarchy,0,Point(0,0));  // Draw contour1 on contour[1]
+      shape_hierarchy,0,Point(0,0));  // Draw contour1 on contour[1]. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
     namedWindow("Contour0", WINDOW_FREERATIO);
     namedWindow("Contour1", WINDOW_FREERATIO);
     show_frame("Contour0", shape_contour0); // Show frames with contour[0] and 1
@@ -426,7 +430,7 @@ vector<vector<Point>> drone_tracking::get_contours(Mat src_in)
   vector<Vec4i> local_hierarchy;        // Hierarchy of contours
 
   // Threshold src and store result in src
-  threshold(src, src, THRESH_THRESH, THRESH_MAXVAL, THRESH_TYPE);
+  threshold(src, src, THRESH_THRESH, THRESH_MAXVAL, THRESH_TYPE); // 1st aug: mat in, 2nd aug: mat out, 3rd aug: threshold, 4th aug: maximum value to assign when src(x,y)<= thresh, 5th aug: thresholding type (most are defined in top of file)
 
   if(debug)
   {
@@ -440,7 +444,7 @@ vector<vector<Point>> drone_tracking::get_contours(Mat src_in)
   // Organize contours in tree structure and make lines where possible (only two
   // points for a line)
   findContours(src, local_contours, local_hierarchy, CV_RETR_TREE,
-    CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+    CV_CHAIN_APPROX_SIMPLE, Point(0, 0)); // 1st aug: mat to draw on, 2nd aug: where to store the contours, 3rd aug: where to store the hierarchy, 4th aug: mode (CV_RETR_TREE retrieves all of the contours and reconstructs a full hierarchy of nested contours), 5th aug: method (how many points to store: CV_CHAIN_APPROX_SIMPLE compresses horizontal, vertical, and diagonal segments and leaves only their end points), 6th aug: offset by which each contour point is shifted (default: Point(0, 0) = no shift)
   shape_hierarchy = local_hierarchy;      //Necessary to draw contours elsewhere
 
   return local_contours;
@@ -459,9 +463,9 @@ Mat drone_tracking::local_erode(Mat src)
   // Make an element for eroding (its like the shape and size)
   Mat element = getStructuringElement(EROSION_TYPE,
     Size(2*EROSION_SIZE + 1, 2*EROSION_SIZE+1),
-    Point(EROSION_SIZE, EROSION_SIZE));
+    Point(EROSION_SIZE, EROSION_SIZE)); // 1st aug: type (of kernel), 2nd aug: size, 3rd aug: anchor (default: Point(-1,-1) = center of element)
 
-  erode(src, src, element, Point(-1,-1), ERODE_ITERATIONS);  // Erode from center
+  erode(src, src, element, Point(-1,-1), ERODE_ITERATIONS);  // Erode from center. Arguments - 1st aug: mat in, 2nd aug: mat out, 3rd aug: kernel, 4th aug: anchor (default: Point(-1,-1) = center of element), 4th aug: iterations (number of times erosion is applied)
 
   /*************** DEBUG ******************************************************/
   if(debug)
@@ -486,9 +490,9 @@ Mat drone_tracking::local_dilate(Mat src)
   // Make an element for dilating (its like the shape and size)
   Mat element = getStructuringElement(DILATION_TYPE,
     Size(2*DILATION_SIZE+1, 2*DILATION_SIZE+1),
-    Point(DILATION_SIZE, DILATION_SIZE));
+    Point(DILATION_SIZE, DILATION_SIZE)); // 1st aug: type (of kernel), 2nd aug: size, 3rd aug: anchor (default: Point(-1,-1) = center of element)
 
-  dilate(src, src, element, Point(-1,-1), DILATE_ITERATIONS); //Dilate from center
+  dilate(src, src, element, Point(-1,-1), DILATE_ITERATIONS); //Dilate from center. Arguments - 1st aug: type (of kernel), 2nd aug: size, 3rd aug: anchor (default: Point(-1,-1) = center of element)
 
   /*************** DEBUG ******************************************************/
   if(debug)
@@ -511,10 +515,10 @@ void drone_tracking::get_position(vector<Point> contour, xy_position &pos)
                http://stackoverflow.com/questions/14720722/binary-image-orientation
 ******************************************************************************/
 {
-  Moments moment = moments(contour,false);  // Calculate moments
+  Moments moment = moments(contour,false);  // Calculate moments. Arguments - 1st: a contour, 2nd: binary image, if true all nonzero pixels are treated as 1's
   pos.x = moment.m10/moment.m00;            // Calculate x position
   pos.y = moment.m01/moment.m00;            // Calculate y position
-  // Calculate orientation (may not be correct)
+  // Calculate orientation (may not be correct). Based on link above
   double orientation = 0.5 * atan(2 * moment.m11 / (moment.m20 - moment.m02));
   pos.orientation = (orientation / M_PI) * 180;
 }
