@@ -196,9 +196,9 @@ void drone_tracking::window_taskbar_create(int window_number)
 ******************************************************************************/
 {
   if (window_number==1) // Test which window window_taskbar_create is called with
-     createTrackbar("Threashold", window_names[window_number], &color_threashold_1, 1000); // 1st aug: name; 2nd aug: window; 3rd aug: pointer to the variabel (must be int); 4th aug: max value
+     createTrackbar("Threashold", window_names[window_number], &color_threashold_1, 1000); // 1st arg: name; 2nd arg: window; 3rd arg: pointer to the variabel (must be int); 4th arg: max value
   if (window_number==3) // Test which window window_taskbar_create is called with
-     createTrackbar("Dilate iterations", window_names[window_number], &dilate_color_iterations, 10); // 1st aug: name; 2nd aug: window; 3rd aug: pointer to the variabel (must be int); 4th aug: max value
+     createTrackbar("Dilate iterations", window_names[window_number], &dilate_color_iterations, 10); // 1st arg: name; 2nd arg: window; 3rd arg: pointer to the variabel (must be int); 4th arg: max value
 }
 
 void drone_tracking::show_frame(string window_text, Mat in_frame)
@@ -210,7 +210,7 @@ void drone_tracking::show_frame(string window_text, Mat in_frame)
 {
   if (window_enable)
     if (!in_frame.empty())
-      imshow(window_text, in_frame); // 1st aug: window name; 2nd aug: frame to show
+      imshow(window_text, in_frame); // 1st arg: window name; 2nd arg: frame to show
 }
 
 void drone_tracking::frame_analysis()
@@ -240,7 +240,7 @@ void drone_tracking::frame_save(Mat& frame_in)
   string name;
   name = string("frame-") + to_string(frame_save_counter); // Generate name
   frame_save_counter++;
-  frame_save(frame_in, name); // 1st aug: frame to save; 2nd aug: file name
+  frame_save(frame_in, name); // 1st arg: frame to save; 2nd arg: file name
 }
 
 void drone_tracking::frame_save(Mat& frame_in, string name_in)
@@ -252,7 +252,7 @@ void drone_tracking::frame_save(Mat& frame_in, string name_in)
 {
   name_in += "." + frame_save_type; // Add the file extension
   if (!frame_in.empty()) // Only save a frame with content
-    imwrite( "./output/images/"+name_in, frame_in ); // 1st aug: path and name; 2nd aug: frame to save
+    imwrite( "./output/images/"+name_in, frame_in ); // 1st arg: path and name; 2nd arg: frame to save
 }
 
 vector<KeyPoint> drone_tracking::diode_detection()
@@ -270,9 +270,9 @@ vector<KeyPoint> drone_tracking::diode_detection()
 
   cvtColor(frame_bgr, frame_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
   cvtColor(frame_bgr, frame_gray, COLOR_BGR2GRAY); //Convert the captured frame from BGR to GRAY
-  GaussianBlur(frame_gray, frame_gray_with_Gblur, Size(gaussian_blur, gaussian_blur), 0); // Gaussian blur on gray frame, 1st aug: input frame; 2nd aug: output frame; 3rd aug: defines the blur radius; 4th aug: Gaussian kernel standard deviation in X direction, when this is 0 it is computed from the 3rd aug. Gaussaian blur is used since an example used this.
+  GaussianBlur(frame_gray, frame_gray_with_Gblur, Size(gaussian_blur, gaussian_blur), 0); // Gaussian blur on gray frame, 1st arg: input frame; 2nd arg: output frame; 3rd arg: defines the blur radius; 4th arg: Gaussian kernel standard deviation in X direction, when this is 0 it is computed from the 3rd arg. Gaussaian blur is used since an example used this.
 
-  inRange(frame_hsv, Scalar(hsv_h_low,hsv_s_low,hsv_v_low), Scalar(hsv_h_upper, hsv_s_upper, hsv_v_upper), mask_red); // Find the areas which contain red color. 1st aug: inpur frame; 2nd aug: the lower HSV limits; 3rd aug: the upper HSV limits; 4th aug: the output mask.
+  inRange(frame_hsv, Scalar(hsv_h_low,hsv_s_low,hsv_v_low), Scalar(hsv_h_upper, hsv_s_upper, hsv_v_upper), mask_red); // Find the areas which contain red color. 1st arg: inpur frame; 2nd arg: the lower HSV limits; 3rd arg: the upper HSV limits; 4th arg: the output mask.
   frame_red = Scalar(0); // Clear the red frame.
   for (size_t i = 0; i < dilate_color_iterations; i++)
     dilate(mask_red, mask_red, Mat(), Point(-1,-1)); // Enhance the red areas in the image
@@ -284,7 +284,7 @@ vector<KeyPoint> drone_tracking::diode_detection()
   if (debug) {
     cout << "There are " << detected_leds.size() << " red LEDs" << endl;
     if (second_detection_run)
-      cout << "** outdoor **" << endl;
+      cout << "** secondary_detection_run **" << endl;
   }
 
   show_frame(window_names[2], frame_red); // Show the frame only containing the red color
@@ -295,9 +295,9 @@ vector<KeyPoint> drone_tracking::diode_detection()
 
 vector<KeyPoint> drone_tracking::keypoint_detection(Mat in_frame_gray, Mat in_frame_gray_with_Gblur, Mat in_mask_red)
 /*****************************************************************************
-*   Input    : None (the frames are a part of the class). Uses frame_bgr ,im_with_keypoints, and mask_red
-*   Output   : None (the frames are a part of the class)
-*   Function : Finds brighest points
+*   Input    : The 3 frame arguments are frames nessecary for the frame analysis.
+*   Output   : Vector containing keypoints of the desired LED color.
+*   Function : Finds brighest points and thereby LEDs (if they are bright enough compared to the rest of the frame)
 ******************************************************************************/
 {
   Mat im_with_keypoints;
@@ -336,19 +336,19 @@ vector<KeyPoint> drone_tracking::keypoint_detection(Mat in_frame_gray, Mat in_fr
     second_detection_run = false; // Tell the other functions that the keypoints were found from the primary frame
 
   im_with_keypoints = Scalar(0,0,0); // Clear all the channels in the image
-  drawKeypoints( frame_bgr, keypoints, im_with_keypoints, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS ); // Show the keypoints on a frame. 1st aug: input frame; 2nd aug: vector with keypoints to be drawn; 3rd aug: output frame; 4th aug: color of the drawn keypoints (red here); 5th aug: For each keypoint, the circle around keypoint with keypoint size and orientation will be drawn.
+  drawKeypoints( frame_bgr, keypoints, im_with_keypoints, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS ); // Show the keypoints on a frame. 1st arg: input frame; 2nd arg: vector with keypoints to be drawn; 3rd arg: output frame; 4th arg: color of the drawn keypoints (red here); 5th arg: For each keypoint, the circle around keypoint with keypoint size and orientation will be drawn.
   for (size_t i = 0; i < temp_keypoints.size(); i++) // Run through all the red LED keypoints.
-    circle(im_with_keypoints, temp_keypoints[i].pt, temp_keypoints[i].size, Scalar(255, i*40, i*20), temp_keypoints[i].size+(hue_radius/100)); // Draw the right keypoints (the red LEDs). 1st aug: in frame; 2nd aug: the centrum of the circle; 3rd aug: the circle radius; 4th aug: the color of the circle; 5th aug: the width of the circle border.
+    circle(im_with_keypoints, temp_keypoints[i].pt, temp_keypoints[i].size, Scalar(255, i*40, i*20), temp_keypoints[i].size+(hue_radius/100)); // Draw the right keypoints (the red LEDs). 1st arg: in frame; 2nd arg: the centrum of the circle; 3rd arg: the circle radius; 4th arg: the color of the circle; 5th arg: the width of the circle border.
 
   show_frame(window_names[1], im_with_keypoints); // Show the detected keypoints and the RED leds
 
   return temp_keypoints;
 }
 
-vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoints, bool outdoor, Mat in_mask_red)
+vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoints, bool in_secondary_detection_run, Mat in_mask_red)
 /*****************************************************************************
-*   Input    : The 1st aug is the passed keypoints, the 2nd aug is whether or not the keypoints are from a secondary run / outdoor (some params change). Uses mask_circles
-*   Output   : None (the frames are a part of the class)
+*   Input    : The 1st arg is the passed keypoints, the 2nd arg is whether or not the keypoints are from a secondary run / secondary_detection_run (some params change); 3rd arg: the red mask frame.
+*   Output   : Vector containing keypoints of the desired LED color
 *   Function : Filters the found keypoints
 ******************************************************************************/
 {
@@ -363,7 +363,7 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
       mask_circles = in_mask_red.clone(); // Just to get the proper size for the new frame
       mask_circles = Scalar(0); // Clear the only channel on the circle mask frame
       circle(mask_circles, in_keypoints[i].pt, in_keypoints[i].size * 1+(hue_radius/100), Scalar(255), -1); // Draw a circle for the mask.
-      //1st aug: in frame; 2nd aug: the centrum of the circle; 3rd aug: the circle radius; 4th aug: the color of the circle; 5th aug: the width of the circle border, when -1 it fills the cirle instead.
+      //1st arg: in frame; 2nd arg: the centrum of the circle; 3rd arg: the circle radius; 4th arg: the color of the circle; 5th arg: the width of the circle border, when -1 it fills the cirle instead.
       frame_temp = Scalar(0); // Clear the only channel on the circle mask frame
       in_mask_red.copyTo(frame_temp, mask_circles); // Copy in_mask_red to frame_temp but only the area marked in the mask_circles
       mean_of_frame = (mean(frame_temp)[0]/(pow(in_keypoints[i].size,2)*M_PI))*mean_multiply_factor; // Calculate the mean of the frame using an openCV function. Calculation is relative since it takes the size into account.
@@ -372,7 +372,7 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
         cout << "Keypoint " << i << " has a mean red value of " << mean_of_frame << endl;
 
       int color_threashold; // Used to hold the right color_threashold. Used to (almost) avoid the same code
-      if (!outdoor)
+      if (!in_secondary_detection_run)
         color_threashold = color_threashold_1;
       else
         color_threashold = color_threashold_2;
