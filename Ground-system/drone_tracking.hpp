@@ -24,6 +24,12 @@ using namespace cv;
 using namespace std;
 /*****************************    Defines    *******************************/
 # define M_PI           3.14159265358979323846  /* pi */
+# define HUE_ORANGE     11                      /* 0-22 */
+# define HUE_YELLOW     30                      /* 22-38 */
+# define HUE_GREEN      60                      /* 38-75 */
+# define HUE_BLUE       100                      /* 75-130 */
+# define HUE_VIOLET     145                      /* 130-160 */
+# define HUE_RED        160                      /* 160-179; since the red color appears darker, more towards blue, 160 is choosen */
 
 
 /*****************************   Class   *******************************/
@@ -51,7 +57,7 @@ private: // Variables
  // General variables
   bool enable_wait = false;
   int wait_time_ms = 500;
-  bool debug = false;
+  bool debug = true;
   int global_frame_counter = 0;
   int start_skip_frames = 0;
 
@@ -71,14 +77,14 @@ private: // Variables
 
  // Diode detection Variables
   // HSV limits for color seperation (presumably changable)
-  int hsv_h_red_base        = 160; //60 is for green, 160 is for red
-  int hsv_h_red_sensitivity = 24;
-  int hsv_h_red_low         = hsv_h_red_base - hsv_h_red_sensitivity;
-  int hsv_h_red_upper       = hsv_h_red_base + hsv_h_red_sensitivity;
-  int hsv_s_red_low         = 100;
-  int hsv_s_red_upper       = 255;
-  int hsv_v_red_low         = 100;
-  int hsv_v_red_upper       = 255;
+  int hsv_h_base        = HUE_RED; //60 is for green, 160 is for red
+  int hsv_h_sensitivity = 24;
+  int hsv_h_low         = hsv_h_base - hsv_h_sensitivity;
+  int hsv_h_upper       = hsv_h_base + hsv_h_sensitivity;
+  int hsv_s_low         = 100;
+  int hsv_s_upper       = 255;
+  int hsv_v_low         = 100;
+  int hsv_v_upper       = 255;
   int gaussian_blur         = 3; //Must be positive and odd. Higher, more blur
   int dilate_color_iterations = 3;
 
@@ -155,8 +161,8 @@ void drone_tracking::create_windows()
 {
   window_names.push_back("Input stream"); //Window 1
   window_names.push_back("Recognized red LEDs"); //Window 2
-  window_names.push_back("Red mask"); //Window 3
-  window_names.push_back("Red frame"); //Window 4
+  window_names.push_back("Color mask"); //Window 3
+  window_names.push_back("Color seperation frame"); //Window 4
   //window_names.push_back("Other2"); //Window 5
   //window_names.push_back("Other3"); //Window 6
   //window_names.push_back("Window N"); //Window N
@@ -266,7 +272,7 @@ vector<KeyPoint> drone_tracking::diode_detection()
   cvtColor(frame_bgr, frame_gray, COLOR_BGR2GRAY); //Convert the captured frame from BGR to GRAY
   GaussianBlur(frame_gray, frame_gray_with_Gblur, Size(gaussian_blur, gaussian_blur), 0); // Gaussian blur on gray frame, 1st aug: input frame; 2nd aug: output frame; 3rd aug: defines the blur radius; 4th aug: Gaussian kernel standard deviation in X direction, when this is 0 it is computed from the 3rd aug. Gaussaian blur is used since an example used this.
 
-  inRange(frame_hsv, Scalar(hsv_h_red_low,hsv_s_red_low,hsv_v_red_low), Scalar(hsv_h_red_upper, hsv_s_red_upper, hsv_v_red_upper), mask_red); // Find the areas which contain red color. 1st aug: inpur frame; 2nd aug: the lower HSV limits; 3rd aug: the upper HSV limits; 4th aug: the output mask.
+  inRange(frame_hsv, Scalar(hsv_h_low,hsv_s_low,hsv_v_low), Scalar(hsv_h_upper, hsv_s_upper, hsv_v_upper), mask_red); // Find the areas which contain red color. 1st aug: inpur frame; 2nd aug: the lower HSV limits; 3rd aug: the upper HSV limits; 4th aug: the output mask.
   frame_red = Scalar(0); // Clear the red frame.
   for (size_t i = 0; i < dilate_color_iterations; i++)
     dilate(mask_red, mask_red, Mat(), Point(-1,-1)); // Enhance the red areas in the image
