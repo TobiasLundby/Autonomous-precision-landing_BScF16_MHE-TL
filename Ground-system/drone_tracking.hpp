@@ -3,7 +3,7 @@
 * UAS Center
 * Mathias Højgaard Egeberg & Tobias Lundby
 *
-* MODULENAME.: drone_tracking.cpp
+* MODULENAME.: drone_tracking.hpp
 * PROJECT....: Autonomous precision landing ground system
 * DESCRIPTION: Includes functionality to track a drone
 *
@@ -341,7 +341,7 @@ xy_position drone_tracking::get_drone_position(Mat src_frame_in)
       color_green,4,8,shape_hierarchy,0,Point(0,0));  // Draw the shape (drone)
     circle(src_frame_color, Point2f(position.x,position.y), 4,
       color_red, -1, 8, 0); // Draw center of shape (mass_center)
-    imshow("Tracking",src_frame_color); // Show the result
+
     // Print information
     cout << "lowest_match_result = " << lowest_match_result << " x: "
       << position.x << " y: " << position.y  << " O: " << position.orientation
@@ -350,6 +350,9 @@ xy_position drone_tracking::get_drone_position(Mat src_frame_in)
   else    // No match is found
     cout << "lowest_match_result = INT_MAX -> no match \t frame: "
     << frame_number << endl;  // Print no match
+
+  //namedWindow("Tracking", WINDOW_FREERATIO);
+  imshow("Tracking",src_frame_color); // Show the result
 
   match_results.clear();      // Delete results
   frame_contours.clear();     // Delete contours
