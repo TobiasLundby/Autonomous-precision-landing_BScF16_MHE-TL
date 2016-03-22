@@ -39,8 +39,8 @@ private: // Methods
   void frame_save(Mat&);
   void frame_save(Mat&, string);
   vector<KeyPoint> diode_detection();
-  vector<KeyPoint> keypoint_detection();
-  vector<KeyPoint> keypoint_filtering(vector<KeyPoint>, bool);
+  vector<KeyPoint> keypoint_detection(Mat, Mat, Mat);
+  vector<KeyPoint> keypoint_filtering(vector<KeyPoint>, bool, Mat);
   void window_taskbar_create(int);
 
 private: // Variables
@@ -48,13 +48,14 @@ private: // Variables
   Mat frame_bgr;
   VideoCapture capture;
 
+ // General variables
   bool enable_wait = false;
   int wait_time_ms = 500;
   bool debug = false;
   int global_frame_counter = 0;
   int start_skip_frames = 0;
 
-  // show_frame
+ // show_frame variables
   bool window_enable = true;
   vector<string> window_names; // Holds the window names but no values can be added here, must be added in the method.
   bool custom_window_size = true;
@@ -63,13 +64,14 @@ private: // Variables
   int screen_dimension_width = 1280; //HD: 1080; FULL-HD: 1920; Other: 1280
   int screen_dimension_height = 800; //HD: 800 (or 720); FULL-HD: 1200 (or 1080); Other: 800
   bool enable_trackbars = false;
-  // frame_save
+
+ // frame_save variables
   int frame_save_counter = 1;
   string frame_save_type = "png"; // File extension for saving frames
 
-  // Diode detection Variables
-  // HSV limits for color seperation
-  int hsv_h_red_base        = 160; //60 is for green
+ // Diode detection Variables
+  // HSV limits for color seperation (presumably changable)
+  int hsv_h_red_base        = 160; //60 is for green, 160 is for red
   int hsv_h_red_sensitivity = 24;
   int hsv_h_red_low         = hsv_h_red_base - hsv_h_red_sensitivity;
   int hsv_h_red_upper       = hsv_h_red_base + hsv_h_red_sensitivity;
@@ -77,16 +79,8 @@ private: // Variables
   int hsv_s_red_upper       = 255;
   int hsv_v_red_low         = 100;
   int hsv_v_red_upper       = 255;
-  int gaussian_blur         = 3; //Must be positive and odd
+  int gaussian_blur         = 3; //Must be positive and odd. Higher, more blur
   int dilate_color_iterations = 3;
-  Mat frame_hsv;
-  Mat frame_red;
-  Mat frame_gray;
-  Mat frame_gray_with_Gblur;
-  Mat mask_red;
-  Mat mask_circles;
-  Mat frame_temp;
-  Mat im_with_keypoints;
 
   // Setup SimpleBlobDetector parameters.
 	SimpleBlobDetector::Params params;
@@ -262,6 +256,12 @@ vector<KeyPoint> drone_tracking::diode_detection()
 *   Function : Finds the diode
 ******************************************************************************/
 {
+  Mat frame_hsv;
+  Mat frame_red;
+  Mat frame_gray;
+  Mat frame_gray_with_Gblur;
+  Mat mask_red;
+
   cvtColor(frame_bgr, frame_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
   cvtColor(frame_bgr, frame_gray, COLOR_BGR2GRAY); //Convert the captured frame from BGR to GRAY
   GaussianBlur(frame_gray, frame_gray_with_Gblur, Size(gaussian_blur, gaussian_blur), 0); // Gaussian blur on gray frame, 1st aug: input frame; 2nd aug: output frame; 3rd aug: defines the blur radius; 4th aug: Gaussian kernel standard deviation in X direction, when this is 0 it is computed from the 3rd aug. Gaussaian blur is used since an example used this.
@@ -273,7 +273,7 @@ vector<KeyPoint> drone_tracking::diode_detection()
   frame_bgr.copyTo(frame_red, mask_red); // Copy frame_bgr to frame_red but only the area marked in the red_mask
 
   vector<KeyPoint> detected_leds;
-  detected_leds = keypoint_detection(); // Detect the red LEDs
+  detected_leds = keypoint_detection(frame_gray, frame_gray_with_Gblur, mask_red); // Detect the red LEDs
 
   if (debug) {
     cout << "There are " << detected_leds.size() << " red LEDs" << endl;
@@ -281,20 +281,20 @@ vector<KeyPoint> drone_tracking::diode_detection()
       cout << "** outdoor **" << endl;
   }
 
-  show_frame(window_names[1], im_with_keypoints); // Show the detected keypoints and the RED leds
   show_frame(window_names[2], frame_red); // Show the frame only containing the red color
   show_frame(window_names[3], mask_red); // Show the red masking frame
 
   return detected_leds;
 }
 
-vector<KeyPoint> drone_tracking::keypoint_detection()
+vector<KeyPoint> drone_tracking::keypoint_detection(Mat in_frame_gray, Mat in_frame_gray_with_Gblur, Mat in_mask_red)
 /*****************************************************************************
 *   Input    : None (the frames are a part of the class). Uses frame_bgr ,im_with_keypoints, and mask_red
 *   Output   : None (the frames are a part of the class)
 *   Function : Finds brighest points
 ******************************************************************************/
 {
+  Mat im_with_keypoints;
  // All the parameters below are used for the blob detector - only some of them are used because motion blur introduces different shapes etc.
   // Change thresholds
   //params.minThreshold = 0;
@@ -318,14 +318,14 @@ vector<KeyPoint> drone_tracking::keypoint_detection()
 	Ptr<SimpleBlobDetector> detector = SimpleBlobDetector::create(params); // Set up detector with params
   vector<KeyPoint> keypoints; // Used for holding all the keypoints
   vector<KeyPoint> temp_keypoints; // Used to hold the filtered keypoints (red keypoints)
-	detector->detect(frame_gray_with_Gblur, keypoints); // Detect the keyframes from the frame
-  temp_keypoints = keypoint_filtering(keypoints, second_detection_run); // Filter the detected keypoints
+	detector->detect(in_frame_gray_with_Gblur, keypoints); // Detect the keyframes from the frame
+  temp_keypoints = keypoint_filtering(keypoints, second_detection_run, in_mask_red); // Filter the detected keypoints
 
   if (!temp_keypoints.size()) { // See if any keypoints matched a red LED. If not then detect using different frame (mask_red)
     keypoints.clear(); // Delete the old keypoints to hold the new ones from the detector.
-    detector->detect(mask_red, keypoints); // Detect the keyframes from the frame
+    detector->detect(in_mask_red, keypoints); // Detect the keyframes from the frame
     second_detection_run = true; // Tell the other functions that the keypoints were found from the secondary frame
-    temp_keypoints = keypoint_filtering(keypoints, second_detection_run); // Filter the detected keypoints
+    temp_keypoints = keypoint_filtering(keypoints, second_detection_run, in_mask_red); // Filter the detected keypoints
   } else
     second_detection_run = false; // Tell the other functions that the keypoints were found from the primary frame
 
@@ -333,28 +333,33 @@ vector<KeyPoint> drone_tracking::keypoint_detection()
   drawKeypoints( frame_bgr, keypoints, im_with_keypoints, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS ); // Show the keypoints on a frame. 1st aug: input frame; 2nd aug: vector with keypoints to be drawn; 3rd aug: output frame; 4th aug: color of the drawn keypoints (red here); 5th aug: For each keypoint, the circle around keypoint with keypoint size and orientation will be drawn.
   for (size_t i = 0; i < temp_keypoints.size(); i++) // Run through all the red LED keypoints.
     circle(im_with_keypoints, temp_keypoints[i].pt, temp_keypoints[i].size, Scalar(255, i*40, i*20), temp_keypoints[i].size+(hue_radius/100)); // Draw the right keypoints (the red LEDs). 1st aug: in frame; 2nd aug: the centrum of the circle; 3rd aug: the circle radius; 4th aug: the color of the circle; 5th aug: the width of the circle border.
+
+  show_frame(window_names[1], im_with_keypoints); // Show the detected keypoints and the RED leds
+
   return temp_keypoints;
 }
 
-vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoints, bool outdoor)
+vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoints, bool outdoor, Mat in_mask_red)
 /*****************************************************************************
 *   Input    : The 1st aug is the passed keypoints, the 2nd aug is whether or not the keypoints are from a secondary run / outdoor (some params change). Uses mask_circles
 *   Output   : None (the frames are a part of the class)
 *   Function : Filters the found keypoints
 ******************************************************************************/
 {
+  Mat mask_circles;
+  Mat frame_temp;
   vector<KeyPoint> out_keypoints; // Vector to hold the sorted keypoints
   double mean_of_frame = 0; // Used to minimize calculations
   int red_diodes = 0; // Number of red LEDs
   if (in_keypoints.size()) // Test if there are any detected keypoints
   {
     for (size_t i = 0; i < in_keypoints.size(); i++) { // Run through all the keypoints
-      mask_circles = mask_red.clone(); // Just to get the proper size for the new frame
+      mask_circles = in_mask_red.clone(); // Just to get the proper size for the new frame
       mask_circles = Scalar(0); // Clear the only channel on the circle mask frame
       circle(mask_circles, in_keypoints[i].pt, in_keypoints[i].size * 1+(hue_radius/100), Scalar(255), -1); // Draw a circle for the mask.
       //1st aug: in frame; 2nd aug: the centrum of the circle; 3rd aug: the circle radius; 4th aug: the color of the circle; 5th aug: the width of the circle border, when -1 it fills the cirle instead.
       frame_temp = Scalar(0); // Clear the only channel on the circle mask frame
-      mask_red.copyTo(frame_temp, mask_circles); // Copy mask_red to frame_temp but only the area marked in the mask_circles
+      in_mask_red.copyTo(frame_temp, mask_circles); // Copy in_mask_red to frame_temp but only the area marked in the mask_circles
       mean_of_frame = (mean(frame_temp)[0]/(pow(in_keypoints[i].size,2)*M_PI))*mean_multiply_factor; // Calculate the mean of the frame using an openCV function. Calculation is relative since it takes the size into account.
 
       if (debug)
