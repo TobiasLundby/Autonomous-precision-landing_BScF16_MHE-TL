@@ -76,12 +76,13 @@ private: // Methods
   void simple_shape_tracking();
 
   // Match shape methods
-  xy_position get_drone_position(Mat);
+  //xy_position get_drone_position(Mat);
+  bool get_drone_position(Mat, xy_position *);
   void load_shape_im();
   vector<vector<Point>> get_contours(Mat);
   Mat local_erode(Mat);
   Mat local_dilate(Mat);
-  void get_position(vector<Point> contour, xy_position&);
+  void get_position(vector<Point> contour, xy_position *);
 
 private: // Variables
   string filename;
@@ -171,7 +172,8 @@ void drone_tracking::frame_analysis()
 
   //locate_uav(frame_bgr);
   //simple_shape_tracking();
-  get_drone_position(frame_bgr);
+  xy_position position_from_shape;
+  get_drone_position(frame_bgr,&position_from_shape);
 
 
 }
@@ -270,7 +272,8 @@ void drone_tracking::simple_shape_tracking()
 }
 
 
-xy_position drone_tracking::get_drone_position(Mat src_frame_in)
+//xy_position drone_tracking::get_drone_position(Mat src_frame_in)
+bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_out)
 /*****************************************************************************
 *   Input    : The current frame as a Mat
 *   Output   : Struct with position
@@ -294,10 +297,11 @@ xy_position drone_tracking::get_drone_position(Mat src_frame_in)
   vector<double> match_results;           // Values from match
   double lowest_match_result = INT_MAX;   // No match at the beginning
   int best_match_index;                   // Best match (if any)
+  bool match_found = false;
 
   // Zero initialize position
-  position.x = 0;
-  position.y = 0;
+  position_out->x = 0;
+  position_out->y = 0;
 
   // Load shape
   if(!shape_loaded)   // Shape must be loaded first
@@ -340,11 +344,16 @@ xy_position drone_tracking::get_drone_position(Mat src_frame_in)
   // Process the match
   if(lowest_match_result != INT_MAX)            // If a match is found
   {
-    get_position(frame_contours[best_match_index], position); //Get its position
+    match_found = true;
+    get_position(frame_contours[best_match_index], &position); //Get its position
     drawContours(src_frame_color,frame_contours,best_match_index,
       color_green,4,8,shape_hierarchy,0,Point(0,0));  // Draw the shape (drone) // 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
     circle(src_frame_color, Point2f(position.x,position.y), 4,
       color_red, -1, 8, 0); // Draw center of shape (mass_center). Arguments - 1st aug: mat to draw in, 2nd aug: center point, 3rd aug: radius, 4th aug: color as a scalar, 5th aug: thickness (negative is filled circle), 6th aug: linetype (8 standard), 7th aug: number of fractional bits in the center coordinates and the radius value
+
+    position_out->x=position.x;                     // Copy to return struct
+    position_out->y=position.y;
+    position_out->orientation=position.orientation;
 
     // Print information
     cout << "lowest_match_result = " << lowest_match_result << " x: "
@@ -362,7 +371,7 @@ xy_position drone_tracking::get_drone_position(Mat src_frame_in)
   frame_contours.clear();     // Delete contours
   frame_number++;             // Increment framenumber (MAY FAIL!)
 
-  return position;
+  return match_found;
 }
 
 void drone_tracking::load_shape_im()
@@ -505,7 +514,7 @@ Mat drone_tracking::local_dilate(Mat src)
   return src;
 }
 
-void drone_tracking::get_position(vector<Point> contour, xy_position &pos)
+void drone_tracking::get_position(vector<Point> contour, xy_position *pos)
 /*****************************************************************************
 *   Input    : Contour in vector (vector of points)
              : Struct for x-y position
@@ -516,11 +525,11 @@ void drone_tracking::get_position(vector<Point> contour, xy_position &pos)
 ******************************************************************************/
 {
   Moments moment = moments(contour,false);  // Calculate moments. Arguments - 1st: a contour, 2nd: binary image, if true all nonzero pixels are treated as 1's
-  pos.x = moment.m10/moment.m00;            // Calculate x position
-  pos.y = moment.m01/moment.m00;            // Calculate y position
+  pos->x = moment.m10/moment.m00;            // Calculate x position
+  pos->y = moment.m01/moment.m00;            // Calculate y position
   // Calculate orientation (may not be correct). Based on link above
   double orientation = 0.5 * atan(2 * moment.m11 / (moment.m20 - moment.m02));
-  pos.orientation = (orientation / M_PI) * 180;
+  pos->orientation = (orientation / M_PI) * 180;
 }
 
 
