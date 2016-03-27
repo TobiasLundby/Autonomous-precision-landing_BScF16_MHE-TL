@@ -77,7 +77,7 @@ private: // Methods
 
   // Match shape methods
   //xy_position get_drone_position(Mat);
-  bool get_drone_position(Mat, xy_position *);
+  bool get_drone_position(Mat, xy_position *, Mat *);
   void load_shape_im();
   vector<vector<Point>> get_contours(Mat);
   Mat local_erode(Mat);
@@ -101,6 +101,7 @@ private: // Variables
 
   // Match shape constants
   Scalar color_green = Scalar(0,255,0), color_red = Scalar(0,0,255);
+  Scalar color_white = Scalar(255,255,255), color_black = Scalar(0,0,0);
 
 };
 
@@ -172,9 +173,12 @@ void drone_tracking::frame_analysis()
 
   //locate_uav(frame_bgr);
   //simple_shape_tracking();
-  xy_position position_from_shape;
-  get_drone_position(frame_bgr,&position_from_shape);
-
+  xy_position position_from_shape;    // For position returned
+  Mat shape_frame;                    // Frame with only drone masked out
+  shape_frame = Mat::zeros( frame_bgr.size(), CV_8UC3 );
+  get_drone_position(frame_bgr,&position_from_shape, &shape_frame); // Get the position
+  namedWindow("Drone masked out", WINDOW_FREERATIO);
+  show_frame("Drone masked out",shape_frame); // Show the result
 
 }
 
@@ -273,7 +277,7 @@ void drone_tracking::simple_shape_tracking()
 
 
 //xy_position drone_tracking::get_drone_position(Mat src_frame_in)
-bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_out)
+bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_out, Mat *frame_out)
 /*****************************************************************************
 *   Input    : The current frame as a Mat
 *   Output   : Struct with position
@@ -284,11 +288,15 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
 *              called from get_drone_position.
 ******************************************************************************/
 {
+  // Program control
   if(wait_enable)
     waitKey(wait_time);                         // Wait so visual debugging is possible
-  // Prepare the frame for tracking
+
   bool debug = false;
-  Mat src_frame_color, src_frame_gray;  // A frame for color and gray
+  bool show_result = true;
+
+  // Prepare the frame for tracking
+  Mat src_frame_color, src_frame_gray, shape_masked;  // A frame for color and gray
   src_frame_in.copyTo(src_frame_color); // Make sure not to alter original frame
   cvtColor(src_frame_color,src_frame_gray,COLOR_BGR2GRAY);  // Convert to gray
 
@@ -346,14 +354,26 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
   {
     match_found = true;
     get_position(frame_contours[best_match_index], &position); //Get its position
-    drawContours(src_frame_color,frame_contours,best_match_index,
-      color_green,4,8,shape_hierarchy,0,Point(0,0));  // Draw the shape (drone) // 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
-    circle(src_frame_color, Point2f(position.x,position.y), 4,
-      color_red, -1, 8, 0); // Draw center of shape (mass_center). Arguments - 1st aug: mat to draw in, 2nd aug: center point, 3rd aug: radius, 4th aug: color as a scalar, 5th aug: thickness (negative is filled circle), 6th aug: linetype (8 standard), 7th aug: number of fractional bits in the center coordinates and the radius value
+    if(show_result)
+    {
+      drawContours(src_frame_color,frame_contours,best_match_index,
+        color_green,4,8,shape_hierarchy,0,Point(0,0));  // Draw the shape (drone) // 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
+      circle(src_frame_color, Point2f(position.x,position.y), 4,
+        color_red, -1, 8, 0); // Draw center of shape (mass_center). Arguments - 1st aug: mat to draw in, 2nd aug: center point, 3rd aug: radius, 4th aug: color as a scalar, 5th aug: thickness (negative is filled circle), 6th aug: linetype (8 standard), 7th aug: number of fractional bits in the center coordinates and the radius value
+    }
+
+    drawContours(*frame_out,frame_contours,best_match_index,
+      color_white,-1,8,shape_hierarchy,0,Point(0,0));   // Make a mask with the drone // Draw the shape (drone) // 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness (negative = filled out), 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
+
 
     position_out->x=position.x;                     // Copy to return struct
     position_out->y=position.y;
     position_out->orientation=position.orientation;
+
+    (src_frame_in).copyTo(shape_masked, *frame_out);  // Copy only the drone to shape_masked
+    shape_masked.copyTo(*frame_out); // Copy only the drone back to frame_out
+
+
 
     // Print information
     cout << "lowest_match_result = " << lowest_match_result << " x: "
@@ -364,9 +384,13 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
     cout << "lowest_match_result = INT_MAX -> no match \t frame: "
     << frame_number << endl;  // Print no match
 
-  //namedWindow("Tracking", WINDOW_FREERATIO);
-  imshow("Tracking",src_frame_color); // Show the result
-
+  if(show_result)
+  {
+    namedWindow("Tracking", WINDOW_FREERATIO);
+    show_frame("Tracking",src_frame_color); // Show the result
+    namedWindow("Drone masked out, inside", WINDOW_FREERATIO);
+    show_frame("Drone masked out, inside",*frame_out);
+  }
   match_results.clear();      // Delete results
   frame_contours.clear();     // Delete contours
   frame_number++;             // Increment framenumber (MAY FAIL!)
