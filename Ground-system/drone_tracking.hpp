@@ -74,7 +74,7 @@ public: // Methods
   drone_tracking();
   drone_tracking(string);
 private: // Methods
-  void show_frame(string, Mat); //Use window_names to point to the name
+  void show_frame(string, bool, Mat); //Use window_names to point to the name
   void frame_analysis();
   void create_windows();
   void frame_save(Mat&);
@@ -112,6 +112,7 @@ private: // Variables
  // show_frame variables
   bool window_enable = true;
   vector<string> window_names; // Holds the window names but no values can be added here, must be added in the method.
+  vector<bool> window_show; // Holds a flag for showning (true) or not showing each window. Assign value in create_window and use in show_frame.
   bool custom_window_size = true;
   int custom_window_width = 600; // Custom but ensure the proper aspect ratio for the camera
   int custom_window_height = 400;
@@ -215,7 +216,7 @@ drone_tracking::drone_tracking(string filenameIn)
   } else { // Error capture is not opened
     cout << "No capture to open" << endl;
     frame_bgr = Mat::zeros(480, 640, CV_8UC1);
-    show_frame("Failed to open", frame_bgr);
+    show_frame("Failed to open", true, frame_bgr);
     waitKey(0);
   }
 
@@ -228,43 +229,50 @@ void drone_tracking::create_windows()
 *   Function : Creates the windows specified in the vector.
 ******************************************************************************/
 {
-  // THIS SHOULD BE SUBTRACTED WITH 1,
-  window_names.push_back("Input stream"); //Window 1
-  window_names.push_back("Recognized red LEDs"); //Window 2
-  window_names.push_back("Color mask"); //Window 3
-  window_names.push_back("Color seperation frame"); //Window 4
-  //window_names.push_back("Other2"); //Window 5
-  //window_names.push_back("Other3"); //Window 6
-  window_names.push_back("Drone shape"); //Window 5
-  window_names.push_back("Frame contours"); //Window 6
-  window_names.push_back("Tracking"); //Window 7
-  window_names.push_back("Drone masked out, inside"); //Window 8
-  window_names.push_back("Shape frame"); //Window 9
-  window_names.push_back("Contours on shape frame"); //Window 10
-  window_names.push_back("Contour0"); //Window 11
-  window_names.push_back("Contour1"); //Window 12
-  window_names.push_back("Thresholded frame"); //Window 13
-  window_names.push_back("Erode"); //Window 14
-  window_names.push_back("Dilate"); //Window 15
-  //window_names.push_back("Window N"); //Window N
+  // Input frame
+  window_names.push_back("Input stream"); window_show.push_back(true); //Window 0
+
+  // Diode detection
+  window_names.push_back("Recognized red LEDs"); window_show.push_back(true); //Window 1
+  window_names.push_back("Color mask"); window_show.push_back(true); //Window 2
+  window_names.push_back("Color seperation frame"); window_show.push_back(true); //Window 3
+  //window_names.push_back("Other2"); window_show.push_back(true);//Window 4
+  //window_names.push_back("Other3"); window_show.push_back(true);//Window 5
+
+  // Shape detection
+  window_names.push_back("Drone shape"); window_show.push_back(true); //Window 4
+  window_names.push_back("Frame contours"); window_show.push_back(false); //Window 5
+  window_names.push_back("Tracking"); window_show.push_back(true); //Window 6
+  window_names.push_back("Drone masked out, inside"); window_show.push_back(true); //Window 7
+  window_names.push_back("Shape frame"); window_show.push_back(false); //Window 8
+  window_names.push_back("Contours on shape frame"); window_show.push_back(false); //Window 9
+  window_names.push_back("Contour0"); window_show.push_back(false); //Window 10
+  window_names.push_back("Contour1"); window_show.push_back(false); //Window 11
+  window_names.push_back("Thresholded frame"); window_show.push_back(false); //Window 12
+  window_names.push_back("Erode"); window_show.push_back(false); //Window 13
+  window_names.push_back("Dilate"); window_show.push_back(false); //Window 14
+  //window_names.push_back("Window N"); window_show.push_back(true); //Window N
   if (window_enable)
   {
     int j = 0; // Secondary row position counter
     for (size_t i = 0; i < window_names.size(); i++) { // Loop through all the windows
-      if (custom_window_size)
+      if (window_show[i])
       {
-        namedWindow(window_names[i],WINDOW_NORMAL); // WINDOW_NORMAL allows for window resize
-        resizeWindow(window_names[i], custom_window_width, custom_window_height); // Resize the window
-        if ((i+1)*custom_window_width < screen_dimension_width) { // First screen row
-          moveWindow(window_names[i], i*custom_window_width, 0);
-        } else { // Secondary screen row
-          moveWindow(window_names[i], j*custom_window_width, custom_window_height+40);
-          j++;
-        }
-      } else
-        namedWindow(window_names[i],WINDOW_AUTOSIZE); // WINDOW_AUTOSIZE does not allow for resize
-      if (enable_trackbars)
-        window_taskbar_create(i); // Create appropiate task bars
+        if (custom_window_size)
+        {
+          namedWindow(window_names[i],WINDOW_NORMAL); // WINDOW_NORMAL allows for window resize
+          resizeWindow(window_names[i], custom_window_width, custom_window_height); // Resize the window
+          if ((i+1)*custom_window_width < screen_dimension_width) { // First screen row
+            moveWindow(window_names[i], i*custom_window_width, 0);
+          } else { // Secondary screen row
+            moveWindow(window_names[i], j*custom_window_width, custom_window_height+40);
+            j++;
+          }
+        } else
+          namedWindow(window_names[i],WINDOW_AUTOSIZE); // WINDOW_AUTOSIZE does not allow for resize
+        if (enable_trackbars)
+          window_taskbar_create(i); // Create appropiate task bars
+      }
     }
   }
 }
@@ -282,7 +290,7 @@ void drone_tracking::window_taskbar_create(int window_number)
      createTrackbar("Dilate iterations", window_names[window_number], &dilate_color_iterations, 10); // 1st arg: name; 2nd arg: window; 3rd arg: pointer to the variabel (must be int); 4th arg: max value
 }
 
-void drone_tracking::show_frame(string window_text, Mat in_frame)
+void drone_tracking::show_frame(string window_text, bool show_this_frame, Mat in_frame)
 /*****************************************************************************
 *   Input    : None
 *   Output   : None
@@ -290,8 +298,9 @@ void drone_tracking::show_frame(string window_text, Mat in_frame)
 ******************************************************************************/
 {
   if (window_enable)
-    if (!in_frame.empty())
-      imshow(window_text, in_frame); // 1st arg: window name; 2nd arg: frame to show
+    if (show_this_frame)
+      if (!in_frame.empty())
+        imshow(window_text, in_frame); // 1st arg: window name; 2nd arg: frame to show
 }
 
 void drone_tracking::frame_analysis()
@@ -304,7 +313,7 @@ void drone_tracking::frame_analysis()
   if (enable_wait)
     waitKey(wait_time_ms); // Wait if enabled, typically used for manual debug
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
-  show_frame(window_names[0], frame_bgr); // Show original frame
+  show_frame(window_names[0], window_show[0], frame_bgr); // Show original frame
   if (debug)
     cout << endl << "Frame: " << global_frame_counter << endl;
 
@@ -318,7 +327,7 @@ void drone_tracking::frame_analysis()
   Mat shape_frame;                    // Frame with only drone masked out
   shape_frame = Mat::zeros( frame_bgr.size(), CV_8UC3 );
   get_drone_position(frame_bgr,&position_from_shape, &shape_frame); // Get the position
-  show_frame(window_names[4], shape_frame);
+  show_frame(window_names[4], window_show[4], shape_frame);
 
 }
 
@@ -379,8 +388,8 @@ vector<KeyPoint> drone_tracking::diode_detection()
       cout << "** secondary_detection_run **" << endl;
   }
 
-  show_frame(window_names[2], frame_red); // Show the frame only containing the red color
-  show_frame(window_names[3], mask_red); // Show the red masking frame
+  show_frame(window_names[2], window_show[2], frame_red); // Show the frame only containing the red color
+  show_frame(window_names[3], window_show[3], mask_red); // Show the red masking frame
 
   return detected_leds;
 }
@@ -432,7 +441,7 @@ vector<KeyPoint> drone_tracking::keypoint_detection(Mat in_frame_gray, Mat in_fr
   for (size_t i = 0; i < temp_keypoints.size(); i++) // Run through all the red LED keypoints.
     circle(im_with_keypoints, temp_keypoints[i].pt, temp_keypoints[i].size, Scalar(255, i*40, i*20), temp_keypoints[i].size+(hue_radius/100)); // Draw the right keypoints (the red LEDs). 1st arg: in frame; 2nd arg: the centrum of the circle; 3rd arg: the circle radius; 4th arg: the color of the circle; 5th arg: the width of the circle border.
 
-  show_frame(window_names[1], im_with_keypoints); // Show the detected keypoints and the RED leds
+  show_frame(window_names[1], window_show[1], im_with_keypoints); // Show the detected keypoints and the RED leds
 
   return temp_keypoints;
 }
@@ -545,10 +554,10 @@ void drone_tracking::simple_shape_tracking()
   cout << contours.size() << endl;
 
   namedWindow("Contours",CV_WINDOW_FREERATIO);
-  show_frame("Contours",frame_local);
+  show_frame("Contours", true,frame_local);
 
   namedWindow("Biggest contour",CV_WINDOW_FREERATIO);
-  show_frame("Biggest contour",frame_local2);
+  show_frame("Biggest contour", true, frame_local2);
 
   // Moments and mass centers
   // Inspiration: http://docs.opencv.org/2.4/doc/tutorials/imgproc/shapedescriptors/moments/moments.html
@@ -568,7 +577,7 @@ void drone_tracking::simple_shape_tracking()
   circle( frame_local2, mass_center[biggest_index1], 4, color, -1, 8, 0 );
 
   //namedWindow("Center",CV_WINDOW_FREERATIO);
-  show_frame("Center",frame_local2);
+  show_frame("Center", true, frame_local2);
 
 }
 
@@ -624,7 +633,7 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
     drawContours(src_frame_color,shape_contours,-1,color_green,1,8,shape_hierarchy,
       0,Point(0,0));    // 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
     //namedWindow("Frame contours", WINDOW_FREERATIO);
-    show_frame(window_names[5], src_frame_color);
+    show_frame(window_names[5], window_show[5], src_frame_color);
   }
   /*********** END DEBUG ******************************************************/
 
@@ -684,9 +693,9 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
   if(show_result)
   {
     //namedWindow("Tracking", WINDOW_FREERATIO);
-    show_frame(window_names[6],src_frame_color); // Show the result
+    show_frame(window_names[6], window_show[6], src_frame_color); // Show the result
     //namedWindow("Drone masked out, inside", WINDOW_FREERATIO);
-    show_frame(window_names[7],*frame_out);
+    show_frame(window_names[7], window_show[7], *frame_out);
   }
   match_results.clear();      // Delete results
   frame_contours.clear();     // Delete contours
@@ -720,7 +729,7 @@ void drone_tracking::load_shape_im()
     shape_im_color.copyTo(shape_contour0);      // Copy color frame to the new
     shape_im_color.copyTo(shape_contour1);      // frames
 
-    show_frame(window_names[8], shape_im);        // Show gray scale shape frame
+    show_frame(window_names[8], window_show[8], shape_im);        // Show gray scale shape frame
 
     for(int i=0;i<shape_contours.size();i++)    // For all contours in frame
     {
@@ -730,7 +739,7 @@ void drone_tracking::load_shape_im()
 
     cout << shape_contours.size() << endl;      // Print number of contours
     //namedWindow("Contours on shape frame", WINDOW_FREERATIO);
-    show_frame(window_names[9], shape_im_color);  // Show color frame
+    show_frame(window_names[9], window_show[9], shape_im_color);  // Show color frame
 
     drawContours(shape_contour0,shape_contours,0,color_green,4,8,
       shape_hierarchy,0,Point(0,0));  // Draw contour0 on contour[0]. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
@@ -738,8 +747,8 @@ void drone_tracking::load_shape_im()
       shape_hierarchy,0,Point(0,0));  // Draw contour1 on contour[1]. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
     //namedWindow("Contour0", WINDOW_FREERATIO);
     //namedWindow("Contour1", WINDOW_FREERATIO);
-    show_frame(window_names[10], shape_contour0); // Show frames with contour[0] and 1
-    show_frame(window_names[11], shape_contour1);
+    show_frame(window_names[10], window_show[10], shape_contour0); // Show frames with contour[0] and 1
+    show_frame(window_names[11], window_show[11], shape_contour1);
 
   }
   /*********** END DEBUG ******************************************************/
@@ -765,7 +774,7 @@ vector<vector<Point>> drone_tracking::get_contours(Mat src_in)
   if(debug)
   {
     //namedWindow("Thresholded frame",WINDOW_FREERATIO);
-    show_frame(window_names[12],src);  // Show the thresholded frame
+    show_frame(window_names[12], window_show[12],src);  // Show the thresholded frame
   }
   local_erode(src);                     // Erode
   local_dilate(src);                    // Dilate
@@ -801,7 +810,7 @@ Mat drone_tracking::local_erode(Mat src)
   if(debug)
   {
     //namedWindow("Erode", CV_WINDOW_FREERATIO);
-    show_frame(window_names[13],src);                    // Show the result
+    show_frame(window_names[13], window_show[13],src);                    // Show the result
   }
   /*********** END DEBUG ******************************************************/
 
@@ -828,7 +837,7 @@ Mat drone_tracking::local_dilate(Mat src)
   if(debug)
   {
     //namedWindow("Dilate", CV_WINDOW_FREERATIO);
-    show_frame(window_names[14], src);                // Show result
+    show_frame(window_names[14], window_show[14], src);                // Show result
   }
   /*********** END DEBUG ******************************************************/
 
