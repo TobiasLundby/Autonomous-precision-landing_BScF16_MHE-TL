@@ -83,6 +83,7 @@ private: // Methods
   Mat local_erode(Mat);
   Mat local_dilate(Mat);
   void get_position(vector<Point> contour, xy_position *);
+  //void handle_trackbars();
 
 private: // Variables
   string filename;
@@ -95,6 +96,15 @@ private: // Variables
   vector<vector<Point>> shape_contours, frame_contours; // Contours
   vector<Vec4i> shape_hierarchy;    // Hierarchy
   int frame_number = 0;             // Frame number for debug
+
+  int erosion_type = EROSION_TYPE;
+  int erosion_size = EROSION_SIZE;
+  int erode_iterations = ERODE_ITERATIONS;
+  int dilation_type = DILATION_TYPE;
+  int dilation_size = DILATION_SIZE;
+  int dilate_iterations = DILATE_ITERATIONS;
+  int thresh_tresh = THRESH_THRESH;
+
 
   bool wait_enable = true;
   int wait_time = 100;
@@ -494,11 +504,11 @@ Mat drone_tracking::local_erode(Mat src)
 {
   bool debug = false;
   // Make an element for eroding (its like the shape and size)
-  Mat element = getStructuringElement(EROSION_TYPE,
-    Size(2*EROSION_SIZE + 1, 2*EROSION_SIZE+1),
-    Point(EROSION_SIZE, EROSION_SIZE)); // 1st aug: type (of kernel), 2nd aug: size, 3rd aug: anchor (default: Point(-1,-1) = center of element)
+  Mat element = getStructuringElement(erosion_type,
+    Size(2*erosion_size + 1, 2*erosion_size+1),
+    Point(erosion_size, erosion_size)); // 1st aug: type (of kernel), 2nd aug: size, 3rd aug: anchor (default: Point(-1,-1) = center of element)
 
-  erode(src, src, element, Point(-1,-1), ERODE_ITERATIONS);  // Erode from center. Arguments - 1st aug: mat in, 2nd aug: mat out, 3rd aug: kernel, 4th aug: anchor (default: Point(-1,-1) = center of element), 4th aug: iterations (number of times erosion is applied)
+  erode(src, src, element, Point(-1,-1), erode_iterations);  // Erode from center. Arguments - 1st aug: mat in, 2nd aug: mat out, 3rd aug: kernel, 4th aug: anchor (default: Point(-1,-1) = center of element), 4th aug: iterations (number of times erosion is applied)
 
   /*************** DEBUG ******************************************************/
   if(debug)
@@ -521,11 +531,11 @@ Mat drone_tracking::local_dilate(Mat src)
 {
   bool debug = false;
   // Make an element for dilating (its like the shape and size)
-  Mat element = getStructuringElement(DILATION_TYPE,
-    Size(2*DILATION_SIZE+1, 2*DILATION_SIZE+1),
-    Point(DILATION_SIZE, DILATION_SIZE)); // 1st aug: type (of kernel), 2nd aug: size, 3rd aug: anchor (default: Point(-1,-1) = center of element)
+  Mat element = getStructuringElement(dilation_type,
+    Size(2*dilation_size+1, 2*dilation_size+1),
+    Point(dilation_size, dilation_size)); // 1st aug: type (of kernel), 2nd aug: size, 3rd aug: anchor (default: Point(-1,-1) = center of element)
 
-  dilate(src, src, element, Point(-1,-1), DILATE_ITERATIONS); //Dilate from center. Arguments - 1st aug: type (of kernel), 2nd aug: size, 3rd aug: anchor (default: Point(-1,-1) = center of element)
+  dilate(src, src, element, Point(-1,-1), dilate_iterations); //Dilate from center. Arguments - 1st aug: type (of kernel), 2nd aug: size, 3rd aug: anchor (default: Point(-1,-1) = center of element)
 
   /*************** DEBUG ******************************************************/
   if(debug)
@@ -556,7 +566,24 @@ void drone_tracking::get_position(vector<Point> contour, xy_position *pos)
   pos->orientation = (orientation / M_PI) * 180;
 }
 
+/*
+void drone_tracking::handle_trackbars()
+{
 
+  createTrackbar(const cv::String &trackbarname, const cv::String &winname, int *value, int count)
+  createTrackbar("erosion_size", "Settings", &erosion_size, 10);
+  //createTrackbar("erosion_type","Settings",&erosion_type,3)
+  create("erode_iterations","Settings",)
+
+  int erosion_type = EROSION_TYPE;
+  int erosion_size = EROSION_SIZE;
+  int erode_iterations = ERODE_ITERATIONS;
+  int dilation_type = DILATION_TYPE;
+  int dilation_size = DILATION_SIZE;
+  int dilate_iterations = DILATE_ITERATIONS;
+  int thresh_tresh = THRESH_THRESH;
+}
+*/
 // int drone_tracking::dummy_function()
 // /*****************************************************************************
 // *   Input    :
