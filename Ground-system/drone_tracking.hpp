@@ -228,12 +228,24 @@ void drone_tracking::create_windows()
 *   Function : Creates the windows specified in the vector.
 ******************************************************************************/
 {
+  // THIS SHOULD BE SUBTRACTED WITH 1,
   window_names.push_back("Input stream"); //Window 1
   window_names.push_back("Recognized red LEDs"); //Window 2
   window_names.push_back("Color mask"); //Window 3
   window_names.push_back("Color seperation frame"); //Window 4
   //window_names.push_back("Other2"); //Window 5
   //window_names.push_back("Other3"); //Window 6
+  window_names.push_back("Drone shape"); //Window 5
+  window_names.push_back("Frame contours"); //Window 6
+  window_names.push_back("Tracking"); //Window 7
+  window_names.push_back("Drone masked out, inside"); //Window 8
+  window_names.push_back("Shape frame"); //Window 9
+  window_names.push_back("Contours on shape frame"); //Window 10
+  window_names.push_back("Contour0"); //Window 11
+  window_names.push_back("Contour1"); //Window 12
+  window_names.push_back("Thresholded frame"); //Window 13
+  window_names.push_back("Erode"); //Window 14
+  window_names.push_back("Dilate"); //Window 15
   //window_names.push_back("Window N"); //Window N
   if (window_enable)
   {
@@ -306,8 +318,7 @@ void drone_tracking::frame_analysis()
   Mat shape_frame;                    // Frame with only drone masked out
   shape_frame = Mat::zeros( frame_bgr.size(), CV_8UC3 );
   get_drone_position(frame_bgr,&position_from_shape, &shape_frame); // Get the position
-  namedWindow("Drone masked out", WINDOW_FREERATIO);
-  show_frame("Drone masked out",shape_frame); // Show the result
+  show_frame(window_names[4], shape_frame);
 
 }
 
@@ -613,7 +624,7 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
     drawContours(src_frame_color,shape_contours,-1,color_green,1,8,shape_hierarchy,
       0,Point(0,0));    // 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
     //namedWindow("Frame contours", WINDOW_FREERATIO);
-    show_frame("Frame contours", src_frame_color);
+    show_frame(window_names[5], src_frame_color);
   }
   /*********** END DEBUG ******************************************************/
 
@@ -672,10 +683,10 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
 
   if(show_result)
   {
-    namedWindow("Tracking", WINDOW_FREERATIO);
-    show_frame("Tracking",src_frame_color); // Show the result
-    namedWindow("Drone masked out, inside", WINDOW_FREERATIO);
-    show_frame("Drone masked out, inside",*frame_out);
+    //namedWindow("Tracking", WINDOW_FREERATIO);
+    show_frame(window_names[6],src_frame_color); // Show the result
+    //namedWindow("Drone masked out, inside", WINDOW_FREERATIO);
+    show_frame(window_names[7],*frame_out);
   }
   match_results.clear();      // Delete results
   frame_contours.clear();     // Delete contours
@@ -709,7 +720,7 @@ void drone_tracking::load_shape_im()
     shape_im_color.copyTo(shape_contour0);      // Copy color frame to the new
     shape_im_color.copyTo(shape_contour1);      // frames
 
-    show_frame("Shape frame", shape_im);        // Show gray scale shape frame
+    show_frame(window_names[8], shape_im);        // Show gray scale shape frame
 
     for(int i=0;i<shape_contours.size();i++)    // For all contours in frame
     {
@@ -718,17 +729,17 @@ void drone_tracking::load_shape_im()
     }
 
     cout << shape_contours.size() << endl;      // Print number of contours
-    namedWindow("Contours on shape frame", WINDOW_FREERATIO);
-    show_frame("Contours on shape frame", shape_im_color);  // Show color frame
+    //namedWindow("Contours on shape frame", WINDOW_FREERATIO);
+    show_frame(window_names[9], shape_im_color);  // Show color frame
 
     drawContours(shape_contour0,shape_contours,0,color_green,4,8,
       shape_hierarchy,0,Point(0,0));  // Draw contour0 on contour[0]. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
     drawContours(shape_contour1,shape_contours,1,color_green,4,8,
       shape_hierarchy,0,Point(0,0));  // Draw contour1 on contour[1]. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
-    namedWindow("Contour0", WINDOW_FREERATIO);
-    namedWindow("Contour1", WINDOW_FREERATIO);
-    show_frame("Contour0", shape_contour0); // Show frames with contour[0] and 1
-    show_frame("Contour1", shape_contour1);
+    //namedWindow("Contour0", WINDOW_FREERATIO);
+    //namedWindow("Contour1", WINDOW_FREERATIO);
+    show_frame(window_names[10], shape_contour0); // Show frames with contour[0] and 1
+    show_frame(window_names[11], shape_contour1);
 
   }
   /*********** END DEBUG ******************************************************/
@@ -753,8 +764,8 @@ vector<vector<Point>> drone_tracking::get_contours(Mat src_in)
 
   if(debug)
   {
-    namedWindow("Thresholded frame",WINDOW_FREERATIO);
-    show_frame("Thresholded frame",src);  // Show the thresholded frame
+    //namedWindow("Thresholded frame",WINDOW_FREERATIO);
+    show_frame(window_names[12],src);  // Show the thresholded frame
   }
   local_erode(src);                     // Erode
   local_dilate(src);                    // Dilate
@@ -789,8 +800,8 @@ Mat drone_tracking::local_erode(Mat src)
   /*************** DEBUG ******************************************************/
   if(debug)
   {
-    namedWindow("Erode", CV_WINDOW_FREERATIO);
-    show_frame("Erode",src);                    // Show the result
+    //namedWindow("Erode", CV_WINDOW_FREERATIO);
+    show_frame(window_names[13],src);                    // Show the result
   }
   /*********** END DEBUG ******************************************************/
 
@@ -816,8 +827,8 @@ Mat drone_tracking::local_dilate(Mat src)
   /*************** DEBUG ******************************************************/
   if(debug)
   {
-    namedWindow("Dilate", CV_WINDOW_FREERATIO);
-    show_frame("Dilate", src);                // Show result
+    //namedWindow("Dilate", CV_WINDOW_FREERATIO);
+    show_frame(window_names[14], src);                // Show result
   }
   /*********** END DEBUG ******************************************************/
 
@@ -857,7 +868,7 @@ void drone_tracking::handle_trackbars()
   int dilation_type = DILATION_TYPE;
   int dilation_size = DILATION_SIZE;
   int dilate_iterations = DILATE_ITERATIONS;
-  int thresh_tresh = THRESH_THRESH;
+  int thresh_thresh = THRESH_THRESH;
 }
 */
 // int drone_tracking::dummy_function()
