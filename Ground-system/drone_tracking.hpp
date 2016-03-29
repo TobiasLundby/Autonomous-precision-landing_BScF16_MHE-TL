@@ -118,7 +118,7 @@ private: // Variables
   int custom_window_height = 400;
   int screen_dimension_width = 1280; //HD: 1080; FULL-HD: 1920; Other: 1280
   int screen_dimension_height = 800; //HD: 800 (or 720); FULL-HD: 1200 (or 1080); Other: 800
-  bool enable_trackbars = false;
+  bool enable_trackbars = true;
 
  // frame_save variables
   int frame_save_counter = 1;
@@ -251,6 +251,7 @@ void drone_tracking::create_windows()
   window_names.push_back("Thresholded frame"); window_show.push_back(false); //Window 12
   window_names.push_back("Erode"); window_show.push_back(false); //Window 13
   window_names.push_back("Dilate"); window_show.push_back(false); //Window 14
+  window_names.push_back("Settings"); window_show.push_back(true); //Window 15
   //window_names.push_back("Window N"); window_show.push_back(true); //Window N
   if (window_enable)
   {
@@ -288,7 +289,32 @@ void drone_tracking::window_taskbar_create(int window_number)
      createTrackbar("Threashold", window_names[window_number], &color_threashold_1, 1000); // 1st arg: name; 2nd arg: window; 3rd arg: pointer to the variabel (must be int); 4th arg: max value
   if (window_number==3) // Test which window window_taskbar_create is called with
      createTrackbar("Dilate iterations", window_names[window_number], &dilate_color_iterations, 10); // 1st arg: name; 2nd arg: window; 3rd arg: pointer to the variabel (must be int); 4th arg: max value
+  if (window_number==15)
+  {
+    createTrackbar("erosion_type", window_names[window_number], &erosion_type, 3);
+    createTrackbar("erosion_size", window_names[window_number], &erosion_size, 20);
+    createTrackbar("erode_iterations", window_names[window_number], &erode_iterations, 20);
+    createTrackbar("dilation_type", window_names[window_number], &dilation_type, 3);
+    createTrackbar("dilation_size", window_names[window_number], &dilation_size, 20);
+    createTrackbar("dilate_iterations", window_names[window_number], &dilate_iterations, 20);
+    createTrackbar("thresh_thresh", window_names[window_number], &thresh_tresh, 3);
+
+  }
+
+/*
+  int erosion_type = EROSION_TYPE;
+  int erosion_size = EROSION_SIZE;
+  int erode_iterations = ERODE_ITERATIONS;
+  int dilation_type = DILATION_TYPE;
+  int dilation_size = DILATION_SIZE;
+  int dilate_iterations = DILATE_ITERATIONS;
+  int thresh_tresh = THRESH_THRESH;
+*/
 }
+
+
+
+
 
 void drone_tracking::show_frame(string window_text, bool show_this_frame, Mat in_frame)
 /*****************************************************************************
