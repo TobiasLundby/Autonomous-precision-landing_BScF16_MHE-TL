@@ -114,8 +114,8 @@ private: // Variables
   vector<string> window_names; // Holds the window names but no values can be added here, must be added in the method.
   vector<bool> window_show; // Holds a flag for showning (true) or not showing each window. Assign value in create_window and use in show_frame.
   bool custom_window_size = true;
-  int custom_window_width = 600; // Custom but ensure the proper aspect ratio for the camera
-  int custom_window_height = 400;
+  int custom_window_width = 400; // Custom but ensure the proper aspect ratio for the camera
+  int custom_window_height = 300;
   int screen_dimension_width = 1280; //HD: 1080; FULL-HD: 1920; Other: 1280
   int screen_dimension_height = 800; //HD: 800 (or 720); FULL-HD: 1200 (or 1080); Other: 800
   bool enable_trackbars = true;
@@ -230,20 +230,20 @@ void drone_tracking::create_windows()
 ******************************************************************************/
 {
   // Input frame
-  window_names.push_back("Input stream"); window_show.push_back(true); //Window 0
+  window_names.push_back("Input stream"); window_show.push_back(false); //Window 0 *
 
   // Diode detection
-  window_names.push_back("Recognized red LEDs"); window_show.push_back(true); //Window 1
-  window_names.push_back("Color mask"); window_show.push_back(true); //Window 2
-  window_names.push_back("Color seperation frame"); window_show.push_back(true); //Window 3
+  window_names.push_back("Recognized red LEDs"); window_show.push_back(false); //Window 1 *
+  window_names.push_back("Color mask"); window_show.push_back(false); //Window 2 *
+  window_names.push_back("Color seperation frame"); window_show.push_back(false); //Window 3 *
   //window_names.push_back("Other2"); window_show.push_back(true);//Window 4
   //window_names.push_back("Other3"); window_show.push_back(true);//Window 5
 
   // Shape detection
-  window_names.push_back("Drone shape"); window_show.push_back(true); //Window 4
+  window_names.push_back("Drone shape"); window_show.push_back(false); //Window 4 *
   window_names.push_back("Frame contours"); window_show.push_back(false); //Window 5
-  window_names.push_back("Tracking"); window_show.push_back(true); //Window 6
-  window_names.push_back("Drone masked out, inside"); window_show.push_back(true); //Window 7
+  window_names.push_back("Tracking"); window_show.push_back(false); //Window 6 *
+  window_names.push_back("Drone masked out, inside"); window_show.push_back(true); //Window 7 *
   window_names.push_back("Shape frame"); window_show.push_back(false); //Window 8
   window_names.push_back("Contours on shape frame"); window_show.push_back(false); //Window 9
   window_names.push_back("Contour0"); window_show.push_back(false); //Window 10
@@ -291,13 +291,13 @@ void drone_tracking::window_taskbar_create(int window_number)
      createTrackbar("Dilate iterations", window_names[window_number], &dilate_color_iterations, 10); // 1st arg: name; 2nd arg: window; 3rd arg: pointer to the variabel (must be int); 4th arg: max value
   if (window_number==15)
   {
-    createTrackbar("erosion_type", window_names[window_number], &erosion_type, 3);
+    createTrackbar("erosion_type", window_names[window_number], &erosion_type, 2);
     createTrackbar("erosion_size", window_names[window_number], &erosion_size, 20);
     createTrackbar("erode_iterations", window_names[window_number], &erode_iterations, 20);
-    createTrackbar("dilation_type", window_names[window_number], &dilation_type, 3);
+    createTrackbar("dilation_type", window_names[window_number], &dilation_type, 2);
     createTrackbar("dilation_size", window_names[window_number], &dilation_size, 20);
     createTrackbar("dilate_iterations", window_names[window_number], &dilate_iterations, 20);
-    createTrackbar("thresh_thresh", window_names[window_number], &thresh_tresh, 3);
+    createTrackbar("thresh_thresh", window_names[window_number], &thresh_tresh, 255);
 
   }
 
@@ -795,7 +795,7 @@ vector<vector<Point>> drone_tracking::get_contours(Mat src_in)
   vector<Vec4i> local_hierarchy;        // Hierarchy of contours
 
   // Threshold src and store result in src
-  threshold(src, src, THRESH_THRESH, THRESH_MAXVAL, THRESH_TYPE); // 1st aug: mat in, 2nd aug: mat out, 3rd aug: threshold, 4th aug: maximum value to assign when src(x,y)<= thresh, 5th aug: thresholding type (most are defined in top of file)
+  threshold(src, src, thresh_tresh, THRESH_MAXVAL, THRESH_TYPE); // 1st aug: mat in, 2nd aug: mat out, 3rd aug: threshold, 4th aug: maximum value to assign when src(x,y)<= thresh, 5th aug: thresholding type (most are defined in top of file)
 
   if(debug)
   {
