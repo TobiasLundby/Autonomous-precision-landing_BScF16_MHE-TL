@@ -230,12 +230,12 @@ void drone_tracking::create_windows()
 ******************************************************************************/
 {
   // Input frame
-  window_names.push_back("Input stream"); window_show.push_back(false); //Window 0 *
+  window_names.push_back("Input stream"); window_show.push_back(true); //Window 0 *
 
   // Diode detection
-  window_names.push_back("Recognized red LEDs"); window_show.push_back(false); //Window 1 *
-  window_names.push_back("Color mask"); window_show.push_back(false); //Window 2 *
-  window_names.push_back("Color seperation frame"); window_show.push_back(false); //Window 3 *
+  window_names.push_back("Recognized red LEDs"); window_show.push_back(true); //Window 1 *
+  window_names.push_back("Color mask"); window_show.push_back(true); //Window 2 *
+  window_names.push_back("Color seperation frame"); window_show.push_back(true); //Window 3 *
   //window_names.push_back("Other2"); window_show.push_back(true);//Window 4
   //window_names.push_back("Other3"); window_show.push_back(true);//Window 5
 
