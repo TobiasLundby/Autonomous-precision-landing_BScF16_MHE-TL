@@ -16,6 +16,7 @@ bit_11 = True
 
 # imports
 import serial
+import time
 
 # state variables
 pause = True
@@ -34,6 +35,10 @@ def ansi_clear ():
 
 
 ser_error = False
+
+time.sleep(30)
+
+
 try :
 	ser = serial.Serial(device, baudrate, timeout=0.002)
 except Exception as e:
