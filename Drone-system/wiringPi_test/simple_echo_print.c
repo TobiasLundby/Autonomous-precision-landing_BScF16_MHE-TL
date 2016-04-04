@@ -41,6 +41,9 @@ int main ()
     for(;;) {
         if(avail_bytes = serialDataAvail(ser_handle))
         {
+          old_byte = byte;
+          byte = serialGetchar(ser_handle);
+          serialPutchar(ser_handle,byte);
           if(preamble)
           {
             if(high_byte)
@@ -53,9 +56,6 @@ int main ()
           }
           else
           {
-            old_byte = byte;
-            byte = serialGetchar(ser_handle);
-            serialPutchar(ser_handle,byte);
             if(!high_byte)
             {
               int chan_num = (old_byte>>3) & 0x0f;
