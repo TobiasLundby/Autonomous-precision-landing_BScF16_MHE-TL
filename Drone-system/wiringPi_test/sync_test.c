@@ -38,8 +38,15 @@ int main ()
   int avail_bytes;
 
   bool in_sync = false;
-  bool time_to_sync;
+  bool time_to_sync = true;
   bool modify_signals = false;
+
+  int i = 0;
+  for(i;i<100;i++)
+  {
+    if(serialDataAvail(ser_handle))
+      serialPutchar(ser_handle,serialGetchar(ser_handle));
+  }
 
 
   for (;;)
