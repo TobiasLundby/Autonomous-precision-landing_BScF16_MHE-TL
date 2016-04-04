@@ -33,6 +33,7 @@ int main ()
 
     int counter = 0;
 
+    int avail_bytes;
     for(;;) {
         if(avail_bytes = serialDataAvail(ser_handle))
         {
