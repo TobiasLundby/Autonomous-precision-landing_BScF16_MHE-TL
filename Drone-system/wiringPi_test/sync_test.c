@@ -31,9 +31,11 @@ int main ()
 	printf("Serial open\n");
 
   int last_byte;
-  int current byte;
+  int current_byte;
   int sync_val_expected = 0x0000;
   int byte_count = 0;
+  int bytes_since_sync = 0;
+  int avail_bytes;
 
   bool in_sync = false;
   bool time_to_sync;
@@ -42,7 +44,7 @@ int main ()
 
   for (;;)
   {
-    if(avail_bytes = serialDataAvail(ser_handle))
+    if((avail_bytes = serialDataAvail(ser_handle)))
     {
       last_byte = current_byte;
       current_byte = serialGetchar(ser_handle);
