@@ -22,7 +22,7 @@
 #define LOW             false
 
 typedef struct package{
-  int channel_value[16] = {}; // Sync is not saved.
+  int channel_value[16] = { }; // Sync is not saved.
   int byte_H[16];
   int byte_L[16];
 } package;
