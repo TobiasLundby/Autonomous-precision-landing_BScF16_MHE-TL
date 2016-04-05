@@ -81,7 +81,6 @@ int main ()
 
           if(!in_sync && ((time_byte - time_last_byte) > frame_timeout))
           {
-              printf("Here1");
             if (byte_type == HIGH) {
                 package_in.byte_H[0] = byte_in;
                 byte_in = LOW;
@@ -89,6 +88,7 @@ int main ()
                 package_in.byte_L[0] = byte_in;
 
                 sync_value = package_in.byte_H[0]*256+byte_in;
+                printf("Here1 %i",sync_value);
                 if(sync_value == sync_value_expected || (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value) && (sync_value <(sync_value_expected_next + SYNC_TOLERANCE))))
                 {
                   printf("prev: %d cur: %d dist: %d sync_val: %d Expected: %d or %d\n",byte_num-1,byte_num, byte_num-last_sync, sync_value, sync_value_expected, sync_value_expected_next);
