@@ -112,7 +112,7 @@ int main ()
           {
               if (test_bool) {
                  test_bool = false;
-                 printf("SYNCED");
+                 printf("SYNCED %i", test_bool);
               }
               /*
               byte_since_sync = byte_since_sync + 1;
