@@ -121,7 +121,7 @@ int main ()
                   package_in.byte_L[ byte_since_sync / 2 ] = byte_in;
 
                   int chan_num = ( package_in.byte_H[ byte_since_sync / 2 ] >> 2) & 0x0f;
-                  int value = (( package_in.byte_H[ byte_since_sync / 2 ] & 0x07) <<8) | package_in.byte_L[ byte_since_sync / 2 ];
+                  int value = (( package_in.byte_H[ byte_since_sync / 2 ] & 0x02) <<8) | package_in.byte_L[ byte_since_sync / 2 ];
                   if (chan_num < 18) //I think the best spektrum transmitter is 18-channels
                       package_in.channel_value[ chan_num ] = value;
 
