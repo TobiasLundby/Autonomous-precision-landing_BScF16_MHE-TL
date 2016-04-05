@@ -66,7 +66,7 @@ int main ()
   bool modify_data = false;
   bool byte_type = HIGH;
 
-  bool test_bool = false;
+  bool test_bool = true;
 
   package package_in, package_out;
 
