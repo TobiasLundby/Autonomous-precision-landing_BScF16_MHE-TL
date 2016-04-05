@@ -101,7 +101,7 @@ int main ()
                   printf("sync %d and time diff is %i \n",sync_value, (time_byte - time_last_byte));
                   in_sync = false; // Is actually already false but you know :D
                 }
-                byte_in = HIGH;
+                byte_type = HIGH;
             }
             // Echo when syncing for safety reasons - EVENTUALLY MAKE A SAFE ZONE
             serialPutchar(ser_handle,byte_in);
