@@ -22,7 +22,7 @@
 #define LOW             false
 
 typedef struct package{
-  int data[16]; // Sync is not saved.
+  int channel_value[16]; // Sync is not saved.
   int byte_H[16];
   int byte_L[16];
 } package;
@@ -66,8 +66,6 @@ int main ()
   bool modify_data = false;
   bool byte_type = HIGH;
 
-  bool test_bool = true;
-
   package package_in, package_out;
 
     for(;;)
@@ -79,6 +77,7 @@ int main ()
           byte_in = serialGetchar(ser_handle); //Recieve the byte on the serial port
           time_byte = currentTimeUs(); // Note time of recieve byte
 
+// **************** START OF SYNC PART **************** //
           if(!in_sync && ((time_byte - time_last_byte) > frame_timeout))
           {
             if (byte_type == HIGH) {
@@ -88,7 +87,6 @@ int main ()
                 package_in.byte_L[0] = byte_in;
 
                 sync_value = package_in.byte_H[0]*256+byte_in;
-                printf("Here1 %i\n",sync_value);
                 if(sync_value == sync_value_expected || (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value) && (sync_value <(sync_value_expected_next + SYNC_TOLERANCE))))
                 {
                   printf("prev: %d cur: %d dist: %d sync_val: %d Expected: %d or %d\n",byte_num-1,byte_num, byte_num-last_sync, sync_value, sync_value_expected, sync_value_expected_next);
@@ -107,16 +105,29 @@ int main ()
             }
             // Echo when syncing for safety reasons - EVENTUALLY MAKE A SAFE ZONE
             serialPutchar(ser_handle,byte_in);
+// **************** END OF SYNC PART **************** //
+// **************** START OF DATA PART **************** //
           } else if(in_sync) {
-              printf("Here2 %i \n",sync_value);
-              if (test_bool) {
-                 test_bool = false;
-                 printf("SYNCED %i \n", sync_value);
+              byte_since_sync = byte_since_sync + 1;
+              if(byte_since_sync >= 14 || ((time_byte - time_last_byte) > frame_timeout)){
+                  in_sync = false;
+                  //printf("0: %i, 1: %i, 2: %i, 3: %i, 4\n",);
               }
-              while (true) {
-                  //bla bla
-                  int iiii = 0;
-                  iiii += 1;
+
+              if ( byte_type == HIGH ) {
+                  package_in.byte_H[ ( byte_since_sync / 2 ) + 1 ] = byte_in;
+                  byte_type = LOW;
+              } else if ( byte_type == LOW ) {
+                  package_in.byte_L[ byte_since_sync / 2 ] = byte_in;
+
+                  int chan_num = ( package_in.byte_H[ byte_since_sync / 2 ] >> 3) & 0x0f;
+                  int value = (( package_in.byte_H[ byte_since_sync / 2 ] & 0x07) <<8) | package_in.byte_L[ byte_since_sync / 2 ];
+                  if (chan_num < 18) //I think the best spektrum transmitter is 18-channels
+                      package_in.channel_value[ chan_num ] = value;
+
+                  printf("Channel %i has value %i \n", chan_num, value);
+
+                  byte_type = HIGH;
               }
               /*
               byte_since_sync = byte_since_sync + 1;
@@ -173,12 +184,11 @@ int main ()
                 default:
                     break;
             }
-
-            serialPutchar(ser_handle,transmit_data);
-            byte_since_sync = byte_since_sync + 1;
-            if(byte_since_sync == 15)
-                time_to_sync = true;
             */
+// **************** START OF DATA PART **************** //
+
+            //serialPutchar(ser_handle,transmit_data);
+
             } else {
                 //THIS SHOUDL BE MODIFIED
                 printf("Not in sync\n");
