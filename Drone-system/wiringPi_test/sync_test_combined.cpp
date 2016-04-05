@@ -83,7 +83,7 @@ int main ()
           {
             if (byte_type == HIGH) {
                 package_in.byte_H[0] = byte_in;
-                byte_in = LOW;
+                byte_type = LOW;
             } else if (byte_type == LOW) {
                 package_in.byte_L[0] = byte_in;
 
