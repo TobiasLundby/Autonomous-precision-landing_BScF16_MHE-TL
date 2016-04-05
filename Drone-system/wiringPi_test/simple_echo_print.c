@@ -52,6 +52,7 @@ int main ()
             {
               preamble = false;
               high_byte = true;
+              printf("******* Preamble *********")
             }
           }
           else
@@ -63,14 +64,14 @@ int main ()
               printf("%d\t%d\n",chan_num,value);
               high_byte = true;
             }
-	    else
-              high_byte = false;
+	      else
+          high_byte = false;
           }
-      
-            counter = counter + 1;
+
+          counter = counter + 1;
 /*            if(counter%100 == 0) {
                 printf("Byte %i has been passed on\n", counter);
-            
+
               } */
         }
     }
