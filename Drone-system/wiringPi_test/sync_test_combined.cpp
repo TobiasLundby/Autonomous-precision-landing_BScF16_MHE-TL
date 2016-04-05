@@ -107,12 +107,11 @@ int main ()
             }
             // Echo when syncing for safety reasons - EVENTUALLY MAKE A SAFE ZONE
             serialPutchar(ser_handle,byte_in);
-          }
-          else if(in_sync)
-          {
+          } else if(in_sync) {
+              printf("Here2 %i",sync_value);
               if (test_bool) {
                  test_bool = false;
-                 printf("SYNCED %i", test_bool);
+                 printf("SYNCED %i", sync_value);
               }
               /*
               byte_since_sync = byte_since_sync + 1;
