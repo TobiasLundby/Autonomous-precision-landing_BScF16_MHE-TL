@@ -59,7 +59,7 @@ int main ()
 
   long long time_byte = 0;
   long long time_last_byte = 0;
-  const int frame_timeout = 500; // micro seconds
+  const int frame_timeout = 2000; // micro seconds
 
   bool in_sync = false;
   bool time_to_sync = true;
