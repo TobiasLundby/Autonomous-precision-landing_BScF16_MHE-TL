@@ -10,31 +10,29 @@
 #include <errno.h>
 #include <stdbool.h>
 
+#include <time.h>       /* time */
+#include <sys/time.h>   /* time */
+
 #include <wiringSerial.h>
 
 #define BYTES_IN_FRAME  16
 #define BAUD_RATE       115200
 #define SYNC_TOLERANCE  5
+#define HIGH            true
+#define LOW             false
 
 typedef struct package{
-  int data[14];
-  int byte_H[14];
-  int byte_L[14];
-/*  int chan_0_H;
-  int chan_0_L;
-  int chan_1_H;
-  int chan_1_L;
-  int chan_2_H;
-  int chan_2_L;
-  int chan_3_H;
-  int chan_3_L;
-  int chan_4_H;
-  int chan_4_L;
-  int chan_5_H;
-  int chan_5_L;
-  int chan_6_H;
-  int chan_6_L; */
+  int data[16]; // Sync is not saved.
+  int byte_H[16];
+  int byte_L[16];
 } package;
+
+long long currentTimeUs()
+{
+    timeval current;
+    gettimeofday(&current, 0);
+    return (long long)current.tv_sec * 1000000L + current.tv_usec;
+}
 
 int main ()
 {
@@ -50,284 +48,137 @@ int main ()
   else
 	printf("Serial open\n");
 
-
-  int data, last_data, last_zero; 
+  int byte_in, last_byte_in, last_sync;
   int byte_num = 0;
   int sync_expected = 0;
   int sync_expected_next = sync_expected +45;
   int byte_since_sync = 0;
+  int sync_value = 0;
+  int transmit_data;
+  int expected_byte = 0;
+
+  long long time_byte = 0;
+  long long time_last_byte = 0;
+  const int frame_timeout = 5;
 
   bool in_sync = false;
   bool time_to_sync = true;
   bool modify_data = false;
+  bool byte_type = HIGH;
+
+  bool test_bool = false;
 
   package package_in, package_out;
-  for(;;)
-  {
-    if(serialDataAvail(ser_handle))
+
+    for(;;)
     {
-      last_data = data;
-      data = serialGetchar(ser_handle);
-      if(time_to_sync)
-      {
-        int sync = last_data*255+data;
-        if(sync == sync_expected || (((sync_expected_next - SYNC_TOLERANCE) < sync) && (sync <(sync_expected_next + SYNC_TOLERANCE))))
+        if(serialDataAvail(ser_handle))
         {
-          printf("prev: %d cur: %d dist: %d sync_val: %d Expected: %d or %d\n",byte_num-1,byte_num, byte_num-last_zero, sync, sync_expected, sync_expected_next);
-          last_zero =  byte_num;
-          sync_expected =  sync;
-          sync_expected_next = sync + 45;
-          in_sync = true;
-          byte_since_sync = 0;
-          time_to_sync = false;
-        }
-        else
-        {
-          printf("sync %d\n",sync);
-          in_sync = false;
-        }
-        // Echo when syncing for safety reasons
-        serialPutchar(ser_handle,data);
-      }
-      else
-      {
+          last_byte_in = byte_in; // Rotate data
+          time_last_byte = time_byte; // Rotate data
+          byte_in = serialGetchar(ser_handle); //Recieve the byte on the serial port
+          time_byte = currentTimeUs(); // Note time of recieve byte
 
-        bool high_byte = false;
-        int transmit_data;
-        if((byte_num % 2)==0)
-          high_byte = true;
-
-        if(in_sync)
-        {
-          // transfer directly
-          //serialPutchar(ser_handle,data);
-	  int chan_num = (last_data>>3) & 0x0f;
-          int value = ((last_data & 0x07) <<8) | data;
-	  printf("chan: %d val: %d\n",chan_num,value);
-
-          switch(chan_num){
-            case 0:
-            case 1:
-            case 2:
-            case 3:
-            case 4:
-            case 5:
-            case 6:
-              if(high_byte)
-                package_in.byte_H[chan_num] = data;
-              else
-                package_in.byte_L[chan_num] = data;
-              break;
-            default:
-              time_to_sync = true;
-              break;
-          }
-/*
-          switch(chan_num)
+          if(!in_sync && ((time_byte - time_last_byte) > frame_timeout))
           {
-	    case 0:
-              if(high_byte)
-                package_in.chan_0_H = value;
-              else
-                package_in.chan_0_L = value;
-              break;
-            case 1:
-              if(high_byte)
-                package_in.chan_1_H = value;
-              else
-                package_in.chan_1_L = value;
-              break;
-            case 2:
-              if(high_byte)
-                package_in.chan_2_H = value;
-              else
-                package_in.chan_2_L = value;
-              break;
-            case 3:
-              if(high_byte)
-                package_in.chan_3_H = value;
-              else
-                package_in.chan_3_L = value;
-              break;
-            case 4:
-              if(high_byte)
-                package_in.chan_4_H = value;
-              else
-                package_in.chan_4_L = value;
-              break;
-            case 5:
-              if(high_byte)
-                package_in.chan_5_H = value;
-              else
-                package_in.chan_5_L = value;
-              break;
-            case 6:
-              if(high_byte)
-                package_in.chan_6_H = value;
-              else
-                package_in.chan_6_L = value;
-              break;
-            default:
-              time_to_sync = true;
-              break;
+            if (byte_type == HIGH) {
+                byte_H[0] = byte_in;
+                byte_in = LOW;
+            } else if (byte_type == LOW) {
+                byte_L[0] = byte_in;
+
+                sync_value = byte_H[0]*256+byte_in;
+                if(sync_value == sync_expected || (((sync_expected_next - SYNC_TOLERANCE) < sync_value) && (sync_value <(sync_expected_next + SYNC_TOLERANCE))))
+                {
+                  printf("prev: %d cur: %d dist: %d sync_val: %d Expected: %d or %d\n",byte_num-1,byte_num, byte_num-last_sync, sync, sync_expected, sync_expected_next);
+                  last_sync =  byte_num;
+                  sync_value_expected =  sync_value;
+                  sync_value_expected_next = sync_value + 45;
+                  in_sync = true;
+                  byte_since_sync = 0;
+                }
+                else
+                {
+                  printf("sync %d\n",sync_value);
+                  in_sync = false; // Is actually already false but you know :D
+                }
+                byte_in = HIGH;
+            }
+            // Echo when syncing for safety reasons - EVENTUALLY MAKE A SAFE ZONE
+            serialPutchar(ser_handle,byte_in);
           }
-*/
-          if(modify_data)
+          else if(in_sync)
           {
-            // modify the data
-          } 
+              if (test_bool) {
+                 test_bool = false;
+                 printf("SYNCED");
+              }
+              /*
+              byte_since_sync = byte_since_sync + 1;
+              if (byte_type == HIGH) {
+                  byte_H[byte_since_sync] = byte_in;
+                  byte_in = LOW;
+              } else if (byte_type == LOW) {
+                  byte_L[byte_since_sync] = byte_in;
+                  int chan_num = (last_byte_in>>3) & 0x0f;
+                  int value = ((last_byte_in & 0x07) <<8) | byte_in;
 
-        
+                  byte_in = HIGH;
+              }
+            // transfer directly
+            //serialPutchar(ser_handle,byte_in);
 
-        // transmit
+            printf("chan: %d val: %d\n",chan_num,value);
 
-          switch(chan_num){
-            case 0:
-            case 1:
-            case 2:
-            case 3:
-            case 4:
-            case 5:
-            case 6:
-              if(high_byte)
-                transmit_data = package_in.byte_H[chan_num];
-              else 
-                transmit_data = package_in.byte_L[chan_num];
-              break;
-            default:
-              break;
-          }
+            switch(chan_num){
+                case 0:
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                  if(high_byte)
+                    package_in.byte_H[chan_num] = byte_in;
+                  else
+                    package_in.byte_L[chan_num] = byte_in;
+                  break;
+                default:
+                  time_to_sync = true;
+                  break;
+            }
 
-  /*      switch(chan_num)
-        {
-          case 0:
-            if(high_byte)
-              transmit_data = package_out.chan_0_H;
-            else
-              transmit_data = package_out.chan_0_L;
-            break;
-          case 1:
-            if(high_byte)
-              transmit_data = package_out.chan_1_H;
-            else
-              transmit_data = package_out.chan_1_L;
-            break;
-          case 2:
-            if(high_byte)
-              transmit_data = package_out.chan_2_H;
-            else
-              transmit_data = package_out.chan_2_L;
-          case 3:
-            if(high_byte)
-              transmit_data = package_out.chan_3_H;
-            else
-              transmit_data = package_out.chan_3_L;
-            break;
-          case 4:
-            if(high_byte)
-              transmit_data = package_out.chan_4_H;
-            else
-              transmit_data = package_out.chan_4_L;
-            break;
-          case 5:
-            if(high_byte)
-              transmit_data = package_out.chan_5_H;
-            else
-              transmit_data = package_out.chan_5_L;
-            break;
-          case 6:
-            if(high_byte)
-              transmit_data = package_out.chan_6_H;
-            else
-              transmit_data = package_out.chan_6_L;
-            break;
-          default:
-            time_to_sync = true;
-            break;
-          }
-*/
+            if(modify_data)
+            {
+                // modify the data
+            }
+            switch(chan_num){
+                case 0:
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                    if(high_byte)
+                        transmit_data = package_in.byte_H[chan_num];
+                    else
+                        transmit_data = package_in.byte_L[chan_num];
+                    break;
+                default:
+                    break;
+            }
+
+            serialPutchar(ser_handle,transmit_data);
+            byte_since_sync = byte_since_sync + 1;
+            if(byte_since_sync == 15)
+                time_to_sync = true;
+            */
+            } else {
+                //THIS SHOUDL BE MODIFIED
+                printf("Not in sync\n");
+            }
+        byte_num = byte_num + 1;
         }
-        else  // Not in sync
-          // Echo for safety reasons
-          transmit_data = data;
-         printf("Not in sync\n");
-
-        serialPutchar(ser_handle,transmit_data);
-        byte_since_sync = byte_since_sync + 1;
-        if(byte_since_sync == 15)
-          time_to_sync = true;
-        
-      }
-      byte_num = byte_num + 1;
     }
-  }
-
-/*
-  int last_byte = 0;
-  int current_byte;
-  int sync_val_expected = 0;
-  int sync_val_expected_next = sync_val_expected;
-  int byte_count = 0;
-  int bytes_since_sync = 0;
-  int avail_bytes;
-
-  bool in_sync = false;
-  bool time_to_sync = true;
-  bool modify_signals = false;
-
-  int i = 0;
-  for(i;i<100;i++)
-  {
-    if(serialDataAvail(ser_handle))
-      serialPutchar(ser_handle,serialGetchar(ser_handle));
-  }
-
-
-  for (;;)
-  {
-    if((avail_bytes = serialDataAvail(ser_handle)))
-    {
-      last_byte = current_byte;
-      current_byte = serialGetchar(ser_handle);
-
-      if(time_to_sync)
-      {
-        int sync_val = last_byte*255+current_byte;
-        if( sync_val == sync_val_expected || (((sync_val_expected - SYNC_TOLERANCE) <= sync_val) && (sync_val <= (sync_val_expected + SYNC_TOLERANCE))))
-        {
-          in_sync = true;
-          bytes_since_sync = 0;
-          time_to_sync = false;
-          sync_val_expected = sync_val;
-          sync_val_expected_next = sync_val + 45;
-          printf("Sync succced with value %d. Expected value %d or %d\n",sync_val,sync_val_expected,sync_val_expected_next);
-        }
-        else
-          printf("Sync failed. Expected value %d or %d. Received value %d\n",sync_val_expected,sync_val_expected_next,sync_val);
-
-        // echo bytes
-        serialPutchar(ser_handle,current_byte);
-      }
-      else
-      {
-
-        if(modify_signals)
-        {
-          printf("No modify_signals code yet");
-          //Files can be modified here
-        }
-        else
-        {
-          serialPutchar(ser_handle,current_byte);
-        }
-
-        // Housekeeping
-        bytes_since_sync = bytes_since_sync + 1;
-        if(bytes_since_sync >= BYTES_IN_FRAME - 1)
-          time_to_sync = true;
-      }
-
-      byte_count = byte_count + 1;
-    }
-  } */
 }
