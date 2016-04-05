@@ -81,7 +81,7 @@ int main ()
 
           if(!in_sync && ((time_byte - time_last_byte) > frame_timeout))
           {
-              cout << "here1" << endl;
+              printf("Here1");
             if (byte_type == HIGH) {
                 package_in.byte_H[0] = byte_in;
                 byte_in = LOW;
