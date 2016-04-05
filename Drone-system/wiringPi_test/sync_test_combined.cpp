@@ -88,7 +88,7 @@ int main ()
                 package_in.byte_L[0] = byte_in;
 
                 sync_value = package_in.byte_H[0]*256+byte_in;
-                printf("Here1 %i",sync_value);
+                printf("Here1 %i\n",sync_value);
                 if(sync_value == sync_value_expected || (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value) && (sync_value <(sync_value_expected_next + SYNC_TOLERANCE))))
                 {
                   printf("prev: %d cur: %d dist: %d sync_val: %d Expected: %d or %d\n",byte_num-1,byte_num, byte_num-last_sync, sync_value, sync_value_expected, sync_value_expected_next);
@@ -108,15 +108,15 @@ int main ()
             // Echo when syncing for safety reasons - EVENTUALLY MAKE A SAFE ZONE
             serialPutchar(ser_handle,byte_in);
           } else if(in_sync) {
-              printf("Here2 %i",sync_value);
+              printf("Here2 %i \n",sync_value);
+              if (test_bool) {
+                 test_bool = false;
+                 printf("SYNCED %i \n", sync_value);
+              }
               while (true) {
                   //bla bla
                   int iiii = 0;
                   iiii += 1;
-              }
-              if (test_bool) {
-                 test_bool = false;
-                 printf("SYNCED %i", sync_value);
               }
               /*
               byte_since_sync = byte_since_sync + 1;
