@@ -50,8 +50,8 @@ int main ()
 
   int byte_in, last_byte_in, last_sync;
   int byte_num = 0;
-  int sync_expected = 0;
-  int sync_expected_next = sync_expected +45;
+  int sync_value_expected = 0;
+  int sync_value_expected_next = sync_value_expected +45;
   int byte_since_sync = 0;
   int sync_value = 0;
   int transmit_data;
