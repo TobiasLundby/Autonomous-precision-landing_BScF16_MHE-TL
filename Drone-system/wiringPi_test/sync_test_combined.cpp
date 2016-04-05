@@ -125,7 +125,7 @@ int main ()
                   if (chan_num < 18) //I think the best spektrum transmitter is 18-channels
                       package_in.channel_value[ chan_num ] = value;
 
-                  printf("Channel %i has value %i \n", chan_num, value);
+                  printf("Channel %i has value %i and high byte is %i \n", chan_num, value, package_in.byte_H[ byte_since_sync / 2 ]);
 
                   byte_type = HIGH;
               }
