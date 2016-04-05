@@ -22,7 +22,7 @@
 #define LOW             false
 
 typedef struct package{
-  int channel_value[16]; // Sync is not saved.
+  int channel_value[16] = 0; // Sync is not saved.
   int byte_H[16];
   int byte_L[16];
 } package;
@@ -98,7 +98,7 @@ int main ()
                 }
                 else
                 {
-                  printf("sync %d\n",sync_value);
+                  printf("sync %d and time diff is %i \n",sync_value, (time_byte - time_last_byte));
                   in_sync = false; // Is actually already false but you know :D
                 }
                 byte_in = HIGH;
