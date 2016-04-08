@@ -108,7 +108,7 @@ void change_packet_values(package &p_in, package &p_out)
 ******************************************************************************/
 {
     p_out = p_in;         // Echo package as standard
-    if (false) { // Redundant code - does the same as above but does not copy the preamble as the code above does.
+    if (true) { // Redundant code - does the same as above but does not copy the preamble as the code above does.
         set_channel_value(p_out,0,CHANNEL_MAXVALUE);
         set_channel_value(p_out,1,p_in.channel_value[1]);
         set_channel_value(p_out,2,p_in.channel_value[2]);
