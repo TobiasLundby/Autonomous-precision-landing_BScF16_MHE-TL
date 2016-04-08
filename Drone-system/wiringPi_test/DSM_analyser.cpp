@@ -121,6 +121,7 @@ void change_packet_values(package &p_in, package &p_out)
     // set_channel_value(p_out,4,p_in.channel_value[4]);
     // set_channel_value(p_out,5,p_in.channel_value[5]);
     // set_channel_value(p_out,6,p_in.channel_value[6]);
+    printf("Changed\n");
 }
 
 int main(int argc,char* argv[])
@@ -151,10 +152,10 @@ int main(int argc,char* argv[])
     while(!fatal_error) {
         switch (DSM_STATE) {
             case DSM_S_IDLE: // *** IDLE mode ***
-                printf("IDLE mode\n");
                 if (modify_packets and !packet_modified) {
                     change_packet_values(package_in, package_out);
                     packet_modified = true; // Do it once per packet
+                    printf("Change\n");
                 } else
                     package_out = package_in;
 
