@@ -319,12 +319,12 @@ int main(int argc,char* argv[])
                         break;
                     }
 
-                    if (UNSAFE_counter*16 == RESET_SYNC_THRESHOLD)
+                    if (UNSAFE_counter == RESET_SYNC_THRESHOLD*16)
                     {
                         sync_value_expected = 0;
                         sync_value_expected_next = sync_value + 45;
                     }
-                    else if (UNSAFE_counter*16 >= FATAL_SYNC_THRESHOLD)
+                    else if (UNSAFE_counter >= FATAL_SYNC_THRESHOLD*16)
                     {
                         fatal_error = true;
                     }
