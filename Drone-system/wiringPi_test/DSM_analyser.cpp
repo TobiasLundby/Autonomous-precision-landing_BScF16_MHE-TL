@@ -280,7 +280,7 @@ int main(int argc,char* argv[])
                                 sync_value_expected = sync_value;
                                 sync_value_expected_next = sync_value + 45;
                                 printf("Last_sync_dist: %i\n",last_sync_dist);
-                                if((safe_zone_syncs > 0 && last_sync_dist == 14) || safe_zone_syncs == 0)
+                                if((safe_zone_syncs > 0 && last_sync_dist == 15) || safe_zone_syncs == 0)
                                 {
                                     safe_zone_syncs++;
                                     last_sync_dist = 0;
