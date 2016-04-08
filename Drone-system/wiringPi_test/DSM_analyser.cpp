@@ -155,7 +155,8 @@ int main(int argc,char* argv[])
                     change_packet_values(package_in, package_out);
                     packet_modified = true; // Do it once per packet
                     printf("Change\n");
-                } else
+                    printf("Channel 0 value %X%X", package_out.byte_H[0+1], package_out.byte_H[0+1] )
+                } else if (!modify_packets)
                     package_out = package_in;
 
                 if(avail_bytes = serialDataAvail(ser_handle))
