@@ -59,7 +59,7 @@ bool fatal_error = false;
 bool modify_packets = false;
 bool packet_modified = true;
 
-bool modify = false;
+bool modify = true;
 bool PREAMBLE = true;
 bool BYTE_TYPE = HIGH;
 bool in_sync = true;
