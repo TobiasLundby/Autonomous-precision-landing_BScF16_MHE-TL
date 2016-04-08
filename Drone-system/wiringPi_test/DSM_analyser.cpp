@@ -108,14 +108,19 @@ void change_packet_values(package &p_in, package &p_out)
 ******************************************************************************/
 {
     p_out = p_in;         // Echo package as standard
-    if (true) { // Redundant code - does the same as above but does not copy the preamble as the code above does.
-        set_channel_value(p_out,0,CHANNEL_MAXVALUE);
-        set_channel_value(p_out,1,p_in.channel_value[1]);
-        set_channel_value(p_out,2,p_in.channel_value[2]);
-        set_channel_value(p_out,3,p_in.channel_value[3]);
-        set_channel_value(p_out,4,p_in.channel_value[4]);
-        set_channel_value(p_out,5,p_in.channel_value[5]);
-        set_channel_value(p_out,6,p_in.channel_value[6]);
+    set_channel_value(p_out,0,CHANNEL_MAXVALUE);
+    set_channel_value(p_out,1,CHANNEL_MAXVALUE);
+    set_channel_value(p_out,2,CHANNEL_MAXVALUE);
+    set_channel_value(p_out,3,CHANNEL_MAXVALUE);
+    set_channel_value(p_out,4,CHANNEL_MAXVALUE);
+    set_channel_value(p_out,5,CHANNEL_MAXVALUE);
+    set_channel_value(p_out,6,CHANNEL_MAXVALUE);
+    // set_channel_value(p_out,1,p_in.channel_value[1]);
+    // set_channel_value(p_out,2,p_in.channel_value[2]);
+    // set_channel_value(p_out,3,p_in.channel_value[3]);
+    // set_channel_value(p_out,4,p_in.channel_value[4]);
+    // set_channel_value(p_out,5,p_in.channel_value[5]);
+    // set_channel_value(p_out,6,p_in.channel_value[6]);
     }
 }
 
@@ -147,6 +152,7 @@ int main(int argc,char* argv[])
     while(!fatal_error) {
         switch (DSM_STATE) {
             case DSM_S_IDLE: // *** IDLE mode ***
+                printf("IDLE mode\n");
                 if (modify_packets and !packet_modified) {
                     change_packet_values(package_in, package_out);
                     packet_modified = true; // Do it once per packet
@@ -197,7 +203,7 @@ int main(int argc,char* argv[])
                                     package_in.byte_L[0] = byte_in;
                                     BYTE_TYPE = HIGH;
                                     sync_value = (256*old_byte_in)+byte_in;
-                                    printf("******* Preamble ********* Sync_val: %i\n",sync_value);
+                                    //printf("******* Preamble ********* Sync_val: %i\n",sync_value);
 
                                     if(sync_value == sync_value_expected
                                         || (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
