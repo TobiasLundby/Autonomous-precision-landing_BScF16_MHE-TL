@@ -38,7 +38,7 @@ typedef struct package{
 #define SYNC_TOLERANCE      5
 #define SAFE_ZONE_THRESHOLD 450 // Approximate number of packets ins 10 seconds (packets come with a frequency of ~45,5Hz)
 #define RESET_SYNC_THRESHOLD 700
-#define FATAL_SYNC_THRESHOLD 1000
+#define FATAL_SYNC_THRESHOLD 2000
 #define CHANNEL0_DEFAULT    334
 #define CHANNEL1_DEFAULT    1190
 #define CHANNEL2_DEFAULT    1114
