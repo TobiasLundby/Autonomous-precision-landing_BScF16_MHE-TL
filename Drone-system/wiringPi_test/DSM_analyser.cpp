@@ -149,7 +149,7 @@ int main(int argc,char* argv[])
         switch (DSM_STATE) {
             case DSM_S_IDLE: // *** IDLE mode ***
                 if (modify_packets and !packet_modified) {
-                    change_packet_values(package_in, package_out)
+                    change_packet_values(package_in, package_out);
                     packet_modified = true; // Do it once per packet
                 } else
                     package_out = package_in;
