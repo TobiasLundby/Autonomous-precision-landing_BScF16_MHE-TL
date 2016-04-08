@@ -122,7 +122,7 @@ void change_packet_values(package &p_in, package &p_out)
 
 int main(int argc,char* argv[])
 {
-    cout << "Program started" << endl << "Trying to open serial device..." << endl;
+    printf("Program started\nTrying to open serial device...\n");
 
     int ser_handle; // The serial connection (file descriptor)
     if ((ser_handle = serialOpen("/dev/ttyAMA0", BAUD_RATE)) < 0)
@@ -131,7 +131,7 @@ int main(int argc,char* argv[])
         return 1;
     }
     else
-        cout << "Serial device has been opened successfully" << endl;
+        printf("Serial device has been opened successfully\n");
 
     package package_in, package_out;
     package_out.channel_value[0] = CHANNEL0_DEFAULT;
@@ -144,7 +144,7 @@ int main(int argc,char* argv[])
 
     DSM_STATE = DSM_S_IDLE; // Ensure startup in UNSAFE mode
     if (DSM_STATE = DSM_S_UNSAFE && safe_mode == false)
-        cout << "Starting RX and TX in IDLE mode (safe_mode is false)" << endl;
+        printf("Starting RX and TX in IDLE mode (safe_mode is false)\n");
     while(!fatal_error) {
         switch (DSM_STATE) {
             case DSM_S_IDLE: // *** IDLE mode ***
@@ -181,7 +181,7 @@ int main(int argc,char* argv[])
                             serialPutchar(ser_handle,package_out.byte_L[ (byte_counter / 2) -1]);
                             break;
                         default:
-                            cout << "BYTE_TYPE bool has unrecognizable value" << endl;
+                            printf("BYTE_TYPE bool has unrecognizable value\n");
                             fatal_error = true;
                             break;
                     }
@@ -209,7 +209,7 @@ int main(int argc,char* argv[])
                                     }
                                     else
                                     {
-                                        cout << "Switching to UNSAFE mode due to bad sync" << endl;
+                                        printf("Switching to UNSAFE mode due to bad sync\n");
                                         safe_zone_syncs = 0;
                                         last_sync_dist = 0;
                                         DSM_STATE = DSM_S_UNSAFE;
@@ -218,7 +218,7 @@ int main(int argc,char* argv[])
                                     PREAMBLE = false;
                                     break; // Break for BYTE_TYPE LOW
                                 default: // *** BYTE_TYPE = not known ***
-                                    cout << "BYTE_TYPE bool has unrecognizable value" << endl;
+                                    printf("BYTE_TYPE bool has unrecognizable value\n");
                                     fatal_error = true; // This is really bad!
                                     break; // Break for BYTE_TYPE not known
                             }
@@ -242,13 +242,13 @@ int main(int argc,char* argv[])
                                     }
                                     break; // Break for BYTE_TYPE LOW
                                 default:
-                                    cout << "BYTE_TYPE bool has unrecognizable value" << endl;
+                                    printf("BYTE_TYPE bool has unrecognizable value\n");
                                     fatal_error = true;
                                     break; // Break for BYTE_TYPE not known
                             }
                             break; // Break for PREAMBLE false
                         default:  // *** BYTE_TYPE = not known ***
-                            cout << "PREAMBLE bool has unrecognizable value" << endl;
+                            printf("PREAMBLE bool has unrecognizable value\n");
                             fatal_error = true; // This is really bad!
                             break; // Break for BYTE_TYPE not known
                     }
@@ -318,7 +318,7 @@ int main(int argc,char* argv[])
         }
     }
 
-    cout << "Encountered a FATAL ERROR - echoing serial bytes until termination" << endl;
+    printf("Encountered a FATAL ERROR - echoing serial bytes until termination\n");
     while (true)
         if(serialDataAvail(ser_handle))
             serialPutchar(ser_handle,serialGetchar(ser_handle));
