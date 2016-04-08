@@ -36,7 +36,7 @@ typedef struct package{
 #define HIGH                1
 #define LOW                 0
 #define SYNC_TOLERANCE      5
-#define SAFE_ZONE_THRESHOLD 450 // Approximate number of packets ins 10 seconds (packets come with a frequency of ~45,5Hz)
+#define SAFE_ZONE_THRESHOLD 4500 // Approximate number of packets ins 10 seconds (packets come with a frequency of ~45,5Hz)
 #define CHANNEL0_DEFAULT    334
 #define CHANNEL1_DEFAULT    1190
 #define CHANNEL2_DEFAULT    1114
@@ -142,7 +142,7 @@ int main(int argc,char* argv[])
     package_out.channel_value[6] = CHANNEL6_DEFAULT;
 
     DSM_STATE = DSM_S_IDLE; // Ensure startup in UNSAFE mode
-    if (DSM_STATE = DSM_S_UNSAFE && safe_mode == false)
+    if (DSM_STATE = DSM_S_IDLE && safe_mode == false)
         printf("Starting RX and TX in IDLE mode (safe_mode is false)\n");
     while(!fatal_error) {
         switch (DSM_STATE) {
@@ -211,6 +211,7 @@ int main(int argc,char* argv[])
                                         printf("Switching to UNSAFE mode due to bad sync\n");
                                         safe_zone_syncs = 0;
                                         last_sync_dist = 0;
+                                        safe_mode = false;
                                         DSM_STATE = DSM_S_UNSAFE;
                                     }
 
