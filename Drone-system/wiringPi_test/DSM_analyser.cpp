@@ -37,8 +37,8 @@ typedef struct package{
 #define LOW                 0
 #define SYNC_TOLERANCE      5
 #define SAFE_ZONE_THRESHOLD 450 // Approximate number of packets ins 10 seconds (packets come with a frequency of ~45,5Hz)
-#define RESET_SYNC_THRESHOLD 700 //Must be higher than SAFE_ZONE_THRESHOLD
-#define FATAL_SYNC_THRESHOLD 1000 //Must be higher than SAFE_ZONE_THRESHOLD
+#define RESET_SYNC_THRESHOLD 700
+#define FATAL_SYNC_THRESHOLD 1000 
 #define CHANNEL0_DEFAULT    334
 #define CHANNEL1_DEFAULT    1190
 #define CHANNEL2_DEFAULT    1114
@@ -68,6 +68,7 @@ int byte_in;
 int old_byte_in;
 int byte_counter = 0;
 int last_sync_dist = 0;
+int UNSAFE_counter = 0;
 
 int sync_value;
 int sync_value_expected = 0;
@@ -217,6 +218,7 @@ int main(int argc,char* argv[])
                                         safe_zone_syncs = 0;
                                         last_sync_dist = 0;
                                         safe_mode = false;
+                                        UNSAFE_counter = 0;
                                         DSM_STATE = DSM_S_UNSAFE;
                                     }
 
@@ -262,6 +264,7 @@ int main(int argc,char* argv[])
             case DSM_S_UNSAFE: // *** UNSAFE mode ***
                 if(avail_bytes = serialDataAvail(ser_handle))
                 {
+                    UNSAFE_counter++;
                     old_byte_in = byte_in;
                     time_last_byte = time_byte;
                     time_byte = currentTimeUs();
@@ -315,12 +318,13 @@ int main(int argc,char* argv[])
                         printf("Exiting unsafe zone\n");
                         break;
                     }
-                    else if (safe_zone_syncs == RESET_SYNC_THRESHOLD)
+
+                    if (UNSAFE_counter == RESET_SYNC_THRESHOLD)
                     {
                         sync_value_expected = 0;
                         sync_value_expected_next = sync_value + 45;
                     }
-                    else if (safe_zone_syncs >= FATAL_SYNC_THRESHOLD)
+                    else if (UNSAFE_counter >= FATAL_SYNC_THRESHOLD)
                     {
                         fatal_error = true;
                     }
