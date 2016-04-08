@@ -154,10 +154,10 @@ int main ()
                 }
             }
 
-            if(package_in.channel_value[4]>1600)
-               ;
+//            if(package_in.channel_value[4]>1600)
+//               ;
                // change_values(package_in,package_out);
-            else
+//            else
                 package_out = package_in;
           }
         }
