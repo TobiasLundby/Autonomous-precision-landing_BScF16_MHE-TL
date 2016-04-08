@@ -38,7 +38,7 @@ typedef struct package{
 #define SYNC_TOLERANCE      5
 #define SAFE_ZONE_THRESHOLD 450 // Approximate number of packets ins 10 seconds (packets come with a frequency of ~45,5Hz)
 #define RESET_SYNC_THRESHOLD 700
-#define FATAL_SYNC_THRESHOLD 1000 
+#define FATAL_SYNC_THRESHOLD 1000
 #define CHANNEL0_DEFAULT    334
 #define CHANNEL1_DEFAULT    1190
 #define CHANNEL2_DEFAULT    1114
@@ -319,12 +319,12 @@ int main(int argc,char* argv[])
                         break;
                     }
 
-                    if (UNSAFE_counter == RESET_SYNC_THRESHOLD)
+                    if (UNSAFE_counter*16 == RESET_SYNC_THRESHOLD)
                     {
                         sync_value_expected = 0;
                         sync_value_expected_next = sync_value + 45;
                     }
-                    else if (UNSAFE_counter >= FATAL_SYNC_THRESHOLD)
+                    else if (UNSAFE_counter*16 >= FATAL_SYNC_THRESHOLD)
                     {
                         fatal_error = true;
                     }
