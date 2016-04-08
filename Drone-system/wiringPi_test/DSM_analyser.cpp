@@ -56,10 +56,9 @@ typedef struct package{
 int DSM_STATE = DSM_S_UNSAFE;
 bool safe_mode = false; // Used when going from IDLE mode to either UNSAFE or SAFE
 bool fatal_error = false;
-bool modify_packets = false;
+bool modify_packets = true;
 bool packet_modified = true;
 
-bool modify = true;
 bool PREAMBLE = true;
 bool BYTE_TYPE = HIGH;
 bool in_sync = true;
@@ -313,7 +312,7 @@ int main(int argc,char* argv[])
                         PREAMBLE = true;
                         BYTE_TYPE = HIGH;
                         DSM_STATE = DSM_S_SAFE;
-                        printf("Exiting safe zone\n");
+                        printf("Exiting unsafe zone\n");
                         break;
                     }
                 }
