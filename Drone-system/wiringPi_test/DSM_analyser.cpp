@@ -121,7 +121,6 @@ void change_packet_values(package &p_in, package &p_out)
     // set_channel_value(p_out,4,p_in.channel_value[4]);
     // set_channel_value(p_out,5,p_in.channel_value[5]);
     // set_channel_value(p_out,6,p_in.channel_value[6]);
-    }
 }
 
 int main(int argc,char* argv[])
