@@ -14,6 +14,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <iostream>
 
 #include <time.h>       /* time */
 #include <sys/time.h>   /* time */
@@ -22,6 +23,13 @@
 
 /*****************************   Namespaces  *******************************/
 using namespace std;
+
+/*****************************   Structs   *******************************/
+typedef struct package{
+  int channel_value[16] = { };
+  int byte_H[8];
+  int byte_L[8];
+} package;
 
 /*****************************    Defines    *******************************/
 #define BYTES_IN_FRAME      16
@@ -79,12 +87,6 @@ package_out.channel_value[4] = CHANNEL4_DEFAULT;
 package_out.channel_value[5] = CHANNEL5_DEFAULT;
 package_out.channel_value[6] = CHANNEL6_DEFAULT;
 int avail_bytes = 0; // 0 since no avaliable bytes when starting up
-/*****************************   Structs   *******************************/
-typedef struct package{
-  int channel_value[16] = { };
-  int byte_H[8];
-  int byte_L[8];
-} package;
 
 /*****************************   Methods / functions   *******************************/
 long long currentTimeUs()
