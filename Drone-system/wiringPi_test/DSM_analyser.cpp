@@ -72,20 +72,13 @@ int last_sync_dist = 0;
 int sync_value;
 int sync_value_expected = 0;
 int sync_value_expected_next = sync_value_expected + 45;
+int safe_zone_syncs = 0;
 
 long long time_byte = 0;
 long long time_last_byte = 0;
 const int frame_timeout = 5000; // micro seconds 1ms=1000us
 
 int UNSAFE_syncs;
-package package_in, package_out;
-package_out.channel_value[0] = CHANNEL0_DEFAULT;
-package_out.channel_value[1] = CHANNEL1_DEFAULT;
-package_out.channel_value[2] = CHANNEL2_DEFAULT;
-package_out.channel_value[3] = CHANNEL3_DEFAULT;
-package_out.channel_value[4] = CHANNEL4_DEFAULT;
-package_out.channel_value[5] = CHANNEL5_DEFAULT;
-package_out.channel_value[6] = CHANNEL6_DEFAULT;
 int avail_bytes = 0; // 0 since no avaliable bytes when starting up
 
 /*****************************   Methods / functions   *******************************/
@@ -140,12 +133,21 @@ int main(int argc,char* argv[])
     else
         cout << "Serial device has been opened successfully" << endl;
 
+    package package_in, package_out;
+    package_out.channel_value[0] = CHANNEL0_DEFAULT;
+    package_out.channel_value[1] = CHANNEL1_DEFAULT;
+    package_out.channel_value[2] = CHANNEL2_DEFAULT;
+    package_out.channel_value[3] = CHANNEL3_DEFAULT;
+    package_out.channel_value[4] = CHANNEL4_DEFAULT;
+    package_out.channel_value[5] = CHANNEL5_DEFAULT;
+    package_out.channel_value[6] = CHANNEL6_DEFAULT;
+
     DSM_STATE = DSM_S_IDLE; // Ensure startup in UNSAFE mode
     if (DSM_STATE = DSM_S_UNSAFE && safe_mode == false)
         cout << "Starting RX and TX in IDLE mode (safe_mode is false)" << endl;
     while(!fatal_error) {
         switch (DSM_STATE) {
-            case IDLE: // *** IDLE mode ***
+            case DSM_S_IDLE: // *** IDLE mode ***
                 if (modify_packets and !packet_modified) {
                     change_packet_values(package_in, package_out)
                     packet_modified = true; // Do it once per packet
@@ -155,12 +157,12 @@ int main(int argc,char* argv[])
                 if(avail_bytes = serialDataAvail(ser_handle))
                 {
                     if (safe_mode)
-                        DSM_STATE = SAFE;
+                        DSM_STATE = DSM_S_SAFE;
                     else
-                        DSM_STATE = UNSAFE;
+                        DSM_STATE = DSM_S_UNSAFE;
                 }
                 break;
-            case SAFE: // *** SAFE mode ***
+            case DSM_S_SAFE: // *** SAFE mode ***
                 if(avail_bytes = serialDataAvail(ser_handle))
                 {
                     // RX byte
@@ -252,7 +254,7 @@ int main(int argc,char* argv[])
                     }
                 }
                 break; // Break for DSM_STATE SAFE
-            case UNSAFE: // *** UNSAFE mode ***
+            case DSM_S_UNSAFE: // *** UNSAFE mode ***
                 if(avail_bytes = serialDataAvail(ser_handle))
                 {
                     old_byte_in = byte_in;
@@ -311,7 +313,7 @@ int main(int argc,char* argv[])
                 }
                 break; // Break for DSM_STATE UNSAFE
             default:
-                DSM_STATE = UNSAFE;
+                DSM_STATE = DSM_S_UNSAFE;
                 break; // Break for DSM_STATE not known
         }
     }
