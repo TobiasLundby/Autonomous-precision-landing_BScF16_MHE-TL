@@ -105,6 +105,9 @@ private: // Variables
     int channel4_offset = 0;
     int channel5_offset = 0;
     int channel6_offset = 0;
+
+    int ser_handle; // The serial connection (file descriptor)
+    package package_in, package_out;
 };
 
 /*****************************   Methods / functions   *******************************/
@@ -117,7 +120,7 @@ DSM_RX_TX::DSM_RX_TX()
 {
     printf("Program started\nTrying to open serial device...\n");
 
-    int ser_handle; // The serial connection (file descriptor)
+
     if ((ser_handle = serialOpen("/dev/ttyAMA0", BAUD_RATE)) < 0)
     {
         fprintf(stderr, "Unable to open serial device: %s\n", strerror(errno));
@@ -126,7 +129,6 @@ DSM_RX_TX::DSM_RX_TX()
     else
         printf("Serial device has been opened successfully\n");
 
-    package package_in, package_out;
     package_out.channel_value[0] = CHANNEL0_DEFAULT;
     package_out.channel_value[1] = CHANNEL1_DEFAULT;
     package_out.channel_value[2] = CHANNEL2_DEFAULT;
@@ -150,7 +152,6 @@ DSM_RX_TX::DSM_RX_TX(string port)
 {
     printf("Program started\nTrying to open serial device...\n");
 
-    int ser_handle; // The serial connection (file descriptor)
     if ((ser_handle = serialOpen(port, BAUD_RATE)) < 0)
     {
         fprintf(stderr, "Unable to open serial device: %s\n", strerror(errno));
@@ -159,7 +160,6 @@ DSM_RX_TX::DSM_RX_TX(string port)
     else
         printf("Serial device has been opened successfully\n");
 
-    package package_in, package_out;
     package_out.channel_value[0] = CHANNEL0_DEFAULT;
     package_out.channel_value[1] = CHANNEL1_DEFAULT;
     package_out.channel_value[2] = CHANNEL2_DEFAULT;
