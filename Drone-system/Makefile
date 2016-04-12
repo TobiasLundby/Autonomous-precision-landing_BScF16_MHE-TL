@@ -1,14 +1,14 @@
-CC=clang++ #Compiler
-CFLAGS= -c -std=c++11 -fPIE -g #Compiler Flags #-Ofast
+CC=g++ #Compiler
+CFLAGS= -c -std=c++11 -fPIE #-g #Compiler Flags #-Ofast
 DEFINES=-DENABLE_DELETE
 INCPATH=
 
-LDFLAGS= #Linker options
+LDFLAGS=-lwiringPi #Linker options
 
 SOURCES= main.cpp  $(MOCFILES) #cpp files
 
 OBJECTS=$(SOURCES:.cpp=.o)  #Object files
-EXECUTEABLE=Done_system #Output name
+EXECUTEABLE=Drone_system #Output name
 all: $(HEADERS) $(SOURCES) $(EXECUTEABLE)
 
 $(EXECUTEABLE): $(OBJECTS)

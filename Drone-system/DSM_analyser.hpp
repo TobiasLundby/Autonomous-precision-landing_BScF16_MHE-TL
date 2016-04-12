@@ -59,7 +59,8 @@ class DSM_RX_TX
 {
 public: // Methods
     DSM_RX_TX();
-    DSM_RX_TX(string port);
+    DSM_RX_TX(char* port);
+
     void DSM_analyse(bool loop);
     void enable_all_max();
     void disable_all_max();
@@ -124,7 +125,7 @@ DSM_RX_TX::DSM_RX_TX()
     if ((ser_handle = serialOpen("/dev/ttyAMA0", BAUD_RATE)) < 0)
     {
         fprintf(stderr, "Unable to open serial device: %s\n", strerror(errno));
-        return 1;
+        while(true){;}
     }
     else
         printf("Serial device has been opened successfully\n");
@@ -139,11 +140,11 @@ DSM_RX_TX::DSM_RX_TX()
 
     DSM_STATE = DSM_S_IDLE; // Ensure startup in UNSAFE mode
 
-    if (DSM_STATE = DSM_S_IDLE && safe_mode == false)
+    if (DSM_STATE == DSM_S_IDLE && safe_mode == false)
         printf("RX and TX ready to start in IDLE mode (safe_mode is false)\n");
 }
 
-DSM_RX_TX::DSM_RX_TX(string port)
+DSM_RX_TX::DSM_RX_TX(char* port)
 /*****************************************************************************
 *   Input    : Port name formatted as a string.
 *   Output   : None
@@ -155,7 +156,7 @@ DSM_RX_TX::DSM_RX_TX(string port)
     if ((ser_handle = serialOpen(port, BAUD_RATE)) < 0)
     {
         fprintf(stderr, "Unable to open serial device: %s\n", strerror(errno));
-        return 1;
+        while(true){;}
     }
     else
         printf("Serial device has been opened successfully\n");
@@ -170,7 +171,7 @@ DSM_RX_TX::DSM_RX_TX(string port)
 
     DSM_STATE = DSM_S_IDLE; // Ensure startup in UNSAFE mode
 
-    if (DSM_STATE = DSM_S_IDLE && safe_mode == false)
+    if (DSM_STATE == DSM_S_IDLE && safe_mode == false)
         printf("RX and TX ready to start in IDLE mode (safe_mode is false)\n");
 }
 
@@ -242,7 +243,13 @@ void DSM_RX_TX::DSM_analyse(bool loop)
                 serialPutchar(ser_handle,serialGetchar(ser_handle));
     }
     else
-        RX_TX();
+    {
+        while (DSM_STATE == DSM_S_IDLE)
+            RX_TX();
+        while (DSM_STATE != DSM_S_IDLE)
+            RX_TX();
+        printf("A packet has been recieved and transmitted\n");
+    }
 }
 
 void DSM_RX_TX::RX_TX()
