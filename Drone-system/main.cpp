@@ -14,6 +14,7 @@
 #include <string>
 
 #include "DSM_analyser.hpp"
+#include "client.hpp"
 
 /*****************************   Namespaces  *******************************/
 using namespace std;
@@ -45,16 +46,32 @@ int main(int argc,char* argv[])
 {
     int MAIN_STATE = MAIN_S_INIT;
     bool error = false;
-    //DSM_RX_TX serial_con("/dev/ttyAMA0");
-    DSM_RX_TX serial_con;
 
-    int ch0_off = 0;
-    int ch1_off = 0;
-    int ch2_off = 0;
-    int ch3_off = 0;
-    int ch4_off = 0;
-    int ch5_off = 0;
-    int ch6_off = 0;
+    /* Various for client start */
+      socket_client socket;
+      socket_package sock_pack_in, sock_pack_out;
+      sock_pack_out.field0=0000;
+      sock_pack_out.field1=111;
+      sock_pack_out.field2=222;
+      sock_pack_out.field3=333;
+      sock_pack_out.field4=444;
+      sock_pack_out.field5=555;
+      sock_pack_out.field6=666;
+      sock_pack_out.field7=777;
+    /* Various for client end */
+
+    /* Various for DSM_analyser start */
+      //DSM_RX_TX serial_con("/dev/ttyAMA0");
+      DSM_RX_TX serial_con;
+
+      int ch0_off = 0;
+      int ch1_off = 0;
+      int ch2_off = 0;
+      int ch3_off = 0;
+      int ch4_off = 0;
+      int ch5_off = 0;
+      int ch6_off = 0;
+    /* Various for DSM_analyser end */
 
     while (!error) {
         switch (MAIN_STATE) {
@@ -75,6 +92,8 @@ int main(int argc,char* argv[])
         }
         serial_con.DSM_analyse(false); /* RX AND TX */
         /* HOEJGAARD PUT YOUR SOCKET RX TX HERE */
+        socket.socket_send_frame(&sock_pack_out);
+        socket.socket_get_frame(&sock_pack_in);
     }
 
     /* FUN STUFF - DO NOT RUN ON DRONE - ONLY FOR QGroundControl tests
