@@ -1,6 +1,15 @@
-/*
-  INSPIRED BY: http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
-*/
+/*****************************************************************************
+* University of Southern Denmark
+* UAS Center
+* Mathias Højgaard Egeberg & Tobias Lundby
+*
+* MODULENAME.: client.hpp
+* PROJECT....: Autonomous precision landing ground system
+* DESCRIPTION: Includes functionality to set up a socket client and send and
+*              receive through it.
+*              Most of the technical socket connection stuff is from this page:
+*              http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+*****************************************************************************/
 
 /***************************** Include files *******************************/
 #include <stdio.h>
@@ -20,6 +29,7 @@
 //#define SERVER_IP "192.168.43.193"  // Hoejgaard on Galaxy
 #define PORT "3400"
 
+/*****************************    Structs    *******************************/
 typedef struct socket_package{
   int field0;
   int field1;
@@ -65,31 +75,53 @@ private:
 };
 
 socket_client::socket_client()
+/*****************************************************************************
+*   Input    : None
+*   Output   : None
+*   Function : Default constructor. Initializes connection.
+******************************************************************************/
 {
   init_socket_connection();
 }
-/*
-socket_client::socket_client(char server_ip_in[20], char port_in[10])
-{
-  printf("%s %s\n",server_ip_in,port_in);
-  strcpy (server_ip,server_ip_in);
-  strcpy (port,port_in);
 
-  printf("%s %s\n",server_ip,port);
-  init_socket_connection();
-}
-*/
+// socket_client::socket_client(char server_ip_in[20], char port_in[10])
+// /*****************************************************************************
+// *   Input    : server_ip, port_nr
+// *   Output   : None
+// *   Function : Overload constructor. Initializes connnection with specified ip
+// *              and port. Does not work with g++
+// ******************************************************************************/
+// {
+//   printf("%s %s\n",server_ip_in,port_in);
+//   strcpy (server_ip,server_ip_in);
+//   strcpy (port,port_in);
+//
+//   printf("%s %s\n",server_ip,port);
+//   init_socket_connection();
+// }
+
 
 void socket_client::error(char *msg)
+/*****************************************************************************
+*   Input    : Error message
+*   Output   : None
+*   Function : Handles erors.
+******************************************************************************/
 {
   perror(msg);
   exit(0);
 }
 
 void socket_client::init_socket_connection()
+/*****************************************************************************
+*   Input    : None
+*   Output   : None
+*   Function : Estabelishes connection.
+*              Taken from: http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+******************************************************************************/
 {
   //printf("Opening socket on %s:%s...\n",server_ip,port);
-  portno = atoi(PORT);                      // changed from port
+  portno = atoi(PORT);                      // changed from port to satisfy g++
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (sockfd < 0)
     error((char*)"ERROR opening socket");
@@ -111,6 +143,12 @@ void socket_client::init_socket_connection()
 
 
 int socket_client::socket_send_msg(char message[])
+/*****************************************************************************
+*   Input    : Message to send
+*   Output   : Control variable (<0: error, else succeed)
+*   Function : Send string.
+*              Taken from: http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+******************************************************************************/
 {
   n = write(sockfd,message,strlen(message));
   if (n < 0)
@@ -120,6 +158,12 @@ int socket_client::socket_send_msg(char message[])
 }
 
 char* socket_client::socket_get_msg()
+/*****************************************************************************
+*   Input    : None
+*   Output   : Received string
+*   Function : Receives string.
+*              Taken from: http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+******************************************************************************/
 {
   bzero(buffer,256);
   n = read(sockfd,buffer,255);
@@ -129,6 +173,11 @@ char* socket_client::socket_get_msg()
 }
 
 void socket_client::socket_close()
+/*****************************************************************************
+*   Input    : None
+*   Output   : None
+*   Function : Terminates connection.
+******************************************************************************/
 {
   std::cout << "Closing connection..." << std::endl;
   close(sockfd);
@@ -136,6 +185,11 @@ void socket_client::socket_close()
 }
 
 std::string socket_client::encode_frame(socket_package package)
+/*****************************************************************************
+*   Input    : Package to send
+*   Output   : Package encoded as a string
+*   Function : Convert socket_package to string
+******************************************************************************/
 {
   std::string string_out;
   string_out += std::to_string(package.field0);
@@ -160,6 +214,11 @@ std::string socket_client::encode_frame(socket_package package)
 }
 
 void socket_client::socket_send_frame(socket_package package_out)
+/*****************************************************************************
+*   Input    : None
+*   Output   : socket_package to send
+*   Function : Sends a frame by calling encode_frame() and socket_send_msg().
+******************************************************************************/
 {
   char* retval;
   std::string string_out = encode_frame(package_out);
@@ -172,6 +231,11 @@ void socket_client::socket_send_frame(socket_package package_out)
 
 
 socket_package socket_client::decode_frame(char string_in[])
+/*****************************************************************************
+*   Input    : Received string
+*   Output   : Received string as socket_package
+*   Function : Converts received string to socket_package
+******************************************************************************/
 {
   socket_package package_in;
   int m;
@@ -196,6 +260,11 @@ socket_package socket_client::decode_frame(char string_in[])
 }
 
 int socket_client::get_field_value(std::string string_string_in, int *m)
+/*****************************************************************************
+*   Input    : String with field value
+*   Output   : Field value as integer
+*   Function : Converts a number in string_string_in to an integer.
+******************************************************************************/
 {
   std::string str_field;
   for (int i = *m; i < string_string_in.size(); i++){
@@ -214,6 +283,11 @@ int socket_client::get_field_value(std::string string_string_in, int *m)
 }
 
 void socket_client::socket_get_frame(socket_package *package_in)
+/*****************************************************************************
+*   Input    : socket_package to store frame in
+*   Output   : None
+*   Function : Receives a frame by calling by socket_get_msg() and decode_frame().
+******************************************************************************/
 {
   char* string_in =  socket_get_msg();
   *package_in = decode_frame(string_in);
