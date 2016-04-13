@@ -35,7 +35,7 @@ class socket_client
 {
 public:
   socket_client();
-  socket_client(char *, char *);
+//  socket_client(char *, char *);
   char* socket_get_msg();
   int socket_send_msg(char *);
   void socket_close();
@@ -51,8 +51,8 @@ private:
   socket_package decode_frame(char []);
 
   // Variables
-  char server_ip[20] = SERVER_IP;
-  char port[10] = PORT;
+  //char server_ip[20] = SERVER_IP;
+  //char port[10] = PORT;
   int sockfd, portno, n;
   struct sockaddr_in serv_addr;
   struct hostent *server;
@@ -67,7 +67,7 @@ socket_client::socket_client()
 {
   init_socket_connection();
 }
-
+/*
 socket_client::socket_client(char server_ip_in[20], char port_in[10])
 {
   printf("%s %s\n",server_ip_in,port_in);
@@ -77,7 +77,7 @@ socket_client::socket_client(char server_ip_in[20], char port_in[10])
   printf("%s %s\n",server_ip,port);
   init_socket_connection();
 }
-
+*/
 
 void socket_client::error(char *msg)
 {
@@ -87,12 +87,12 @@ void socket_client::error(char *msg)
 
 void socket_client::init_socket_connection()
 {
-  printf("Opening socket on %s:%s...\n",server_ip,port);
-  portno = atoi(port);
+  //printf("Opening socket on %s:%s...\n",server_ip,port);
+  portno = atoi(PORT);                      // changed from port
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (sockfd < 0)
     error((char*)"ERROR opening socket");
-  server = gethostbyname(server_ip);
+  server = gethostbyname(SERVER_IP);      // changed from server_ip
   if (server == NULL) {
     fprintf(stderr,"ERROR, no such host\n");
     exit(0);

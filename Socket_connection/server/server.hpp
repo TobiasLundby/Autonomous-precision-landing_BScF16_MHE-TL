@@ -36,7 +36,7 @@ class socket_server
 {
 public:
   socket_server();
-  socket_server(char*, char*);
+//  socket_server(char*, char*);
   char* socket_get_msg();
   int socket_send_msg(char []);
   void socket_close();
@@ -52,7 +52,7 @@ private:
   socket_package decode_frame(char []);
 
   // Variables
-  char port[10] = PORT;
+//  char port[10] = PORT;
   int sockfd, newsockfd, portno, clilen;
   char buffer[256];
   struct sockaddr_in serv_addr, cli_addr;
@@ -70,13 +70,13 @@ socket_server::socket_server()
   init_socket_connection();
 }
 
-
+/*
 socket_server::socket_server(char port_in[10],char dummy[10])
 {
   strcpy(port,port_in);
   init_socket_connection();
 }
-
+*/
 void socket_server::error(char *msg)
 {
   perror(msg);
@@ -85,12 +85,12 @@ void socket_server::error(char *msg)
 
 void socket_server::init_socket_connection()
 {
-  printf("Waiting for connection on port %s...\n",port);
+  //printf("Waiting for connection on port %s...\n",port);
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (sockfd < 0)
     error((char *)"ERROR opening socket");
   bzero((char *) &serv_addr, sizeof(serv_addr));
-  portno = atoi(port);
+  portno = atoi(PORT);                  // changed from port
   serv_addr.sin_family = AF_INET;
   serv_addr.sin_addr.s_addr = INADDR_ANY;
   serv_addr.sin_port = htons(portno);

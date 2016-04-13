@@ -5,9 +5,10 @@ using namespace std;
 
 int main(int argc,char* argv[])
 {
+
   socket_package package_in;
-  char portin[10];
-  strcpy(portin,argv[1]);
+  //char portin[10];
+  //strcpy(portin,argv[1]);
   //socket_server socket(portin,portin);
   socket_server socket;
   //socket.socket_get_msg();
