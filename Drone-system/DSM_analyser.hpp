@@ -329,7 +329,7 @@ void DSM_RX_TX::RX_TX()
     switch (DSM_STATE) {
         case DSM_S_IDLE: // *** IDLE mode ***
             if (modify_packets and !packet_modified) {
-                decode_packet(package_in);
+
                 change_packet_values(package_in, package_out);
                 packet_modified = true; // Do it once per packet
             } else if (!modify_packets)
@@ -431,6 +431,7 @@ void DSM_RX_TX::RX_TX()
                                     safe_mode = true; // Indicate that it has to return to SAFE mode from IDLE mode when a byte is received
                                     PREAMBLE = true; // Next time a byte is received the first part is the preamble
                                     byte_counter = 0; // Next time a byte is received this is the 1 byte; note the increment at each receive
+                                    decode_packet(package_in);
                                 }
                                 break; // Break for BYTE_TYPE LOW
                             default:
@@ -557,6 +558,11 @@ void DSM_RX_TX::change_channel_offsets(int channel0_offset_value, int channel1_o
     channel5_offset = channel5_offset_value;
     channel6_offset = channel6_offset_value;
 
+
+    change_packet_values(package_in, package_out);
+    packet_modified = true; // Do it once per packet
+
+
     if (packet_max_value)
         if (debug_simple)
             printf("Note that the offsets are overridden by max values, use disable_all_max to disable");
@@ -570,27 +576,35 @@ void DSM_RX_TX::change_channel_offset(int channel, int offset)
 ******************************************************************************/
 {
     switch (channel) {
+        case 0:
+            channel0_offset = offset;
+            break;
         case 1:
             channel1_offset = offset;
             break;
         case 2:
-            channel1_offset = offset;
+            channel2_offset = offset;
             break;
         case 3:
-            channel1_offset = offset;
+            channel3_offset = offset;
             break;
         case 4:
-            channel1_offset = offset;
+            channel4_offset = offset;
             break;
         case 5:
-            channel1_offset = offset;
+            channel5_offset = offset;
             break;
         case 6:
-            channel1_offset = offset;
+            channel6_offset = offset;
             break;
         default:
             break;
     }
+
+    /*
+    change_packet_values(package_in, package_out);
+    packet_modified = true; // Do it once per packet
+    */
 
     if (packet_max_value)
         if (debug_simple)
