@@ -36,7 +36,7 @@ typedef struct package{
 #define HIGH                1
 #define LOW                 0
 #define SYNC_TOLERANCE      5
-#define SAFE_ZONE_THRESHOLD 450 // Approximate number of packets ins 10 seconds (packets come with a frequency of ~45,5Hz)
+#define SAFE_ZONE_THRESHOLD 45 // Approximate number of packets ins 10 seconds (packets come with a frequency of ~45,5Hz)
 #define RESET_SYNC_THRESHOLD 700
 #define FATAL_SYNC_THRESHOLD 2000
 #define CHANNEL0_DEFAULT    334
@@ -64,14 +64,22 @@ public: // Methods
     bool DSM_analyse(bool loop);
     void enable_all_max();
     void disable_all_max();
-    void change_channel_offsets(int channel1, int channel2, int channel3, int channel4, int channel5, int channel6);
+    void change_channel_offset(int channel, int offset);
+    void change_channel_offsets(int channel0_offset_value, int channel1_offset_value, int channel2_offset_value, int channel3_offset_value, int channel4_offset_value, int channel5_offset_value, int channel6_offset_value);
+    int get_in_channel_value(int channel);
+    int get_out_channel_value(int channel);
 private: // Methods
     long long currentTimeUs();
+    void decode_channel_value(package &p, int byte);
     void set_channel_value(package &p,int channel, int value);
+    void decode_packet(package &p_in);
     void change_packet_values(package &p_in, package &p_out);
     void RX_TX();
 private: // Variables
-    bool debug = false;
+    bool debug_simple = false;
+    bool debug_medium = false;
+    bool debug_expert = false;
+    bool debug_packet = false;
 
     int DSM_STATE = DSM_S_UNSAFE;
     bool safe_mode = false; // Used when going from IDLE mode to either UNSAFE or SAFE
@@ -88,6 +96,8 @@ private: // Variables
     int last_sync_dist = 0;
     int UNSAFE_counter = 0;
 
+    int success_bytes = 0;
+
     int sync_value;
     int sync_value_expected = 0;
     int sync_value_expected_next = sync_value_expected + 45;
@@ -102,6 +112,7 @@ private: // Variables
 
     bool packet_max_value = false;
 
+    int channel0_offset = 0;
     int channel1_offset = 0;
     int channel2_offset = 0;
     int channel3_offset = 0;
@@ -189,7 +200,20 @@ long long DSM_RX_TX::currentTimeUs()
     return (long long)current.tv_sec * 1000000L + current.tv_usec;
 }
 
-void DSM_RX_TX::set_channel_value(package &p,int channel, int value)
+void DSM_RX_TX::decode_channel_value(package &p,int byte)
+/*****************************************************************************
+*   Input    : Package, byte number
+*   Output   : Changes the package channel content
+*   Function : ??
+******************************************************************************/
+{
+    int chan_num = (p.byte_H[byte+1]>>3) & 0x0f;
+    p.channel_value[chan_num] = ((p.byte_H[byte+1] & 0x07)<<8) | p.byte_L[byte+1];
+    if (debug_packet)
+        printf("Channel %i=%i\n", chan_num, p.channel_value[chan_num]);
+}
+
+void DSM_RX_TX::set_channel_value(package &p, int channel, int value)
 /*****************************************************************************
 *   Input    : Package, channel number, and value
 *   Output   : Changes the package channel content
@@ -199,6 +223,22 @@ void DSM_RX_TX::set_channel_value(package &p,int channel, int value)
    p.channel_value[channel] = value;
    p.byte_H[channel+1] = ((channel<<3)|((value & 0x700) >> 8));
    p.byte_L[channel+1] = (value & 0xFF);
+}
+
+void DSM_RX_TX::decode_packet(package &p_in)
+/*****************************************************************************
+*   Input    : 1 packet
+*   Output   : Decoded values inside struct
+*   Function : Decodes all the channel values
+******************************************************************************/
+{
+    decode_channel_value(p_in, 0);
+    decode_channel_value(p_in, 1);
+    decode_channel_value(p_in, 2);
+    decode_channel_value(p_in, 3);
+    decode_channel_value(p_in, 4);
+    decode_channel_value(p_in, 5);
+    decode_channel_value(p_in, 6);
 }
 
 void DSM_RX_TX::change_packet_values(package &p_in, package &p_out)
@@ -218,6 +258,7 @@ void DSM_RX_TX::change_packet_values(package &p_in, package &p_out)
         set_channel_value(p_out,5,CHANNEL_MAXVALUE);
         set_channel_value(p_out,6,CHANNEL_MAXVALUE);
     } else {
+        set_channel_value(p_out,0,p_in.channel_value[0]+channel0_offset);
         set_channel_value(p_out,1,p_in.channel_value[1]+channel1_offset);
         set_channel_value(p_out,2,p_in.channel_value[2]+channel2_offset);
         set_channel_value(p_out,3,p_in.channel_value[3]+channel3_offset);
@@ -225,6 +266,25 @@ void DSM_RX_TX::change_packet_values(package &p_in, package &p_out)
         set_channel_value(p_out,5,p_in.channel_value[5]+channel5_offset);
         set_channel_value(p_out,6,p_in.channel_value[6]+channel6_offset);
     }
+}
+
+int DSM_RX_TX::get_in_channel_value(int channel)
+/*****************************************************************************
+*   Input    : Channel
+*   Output   : Channel value
+*   Function : Returns the value of the channel (RX frame)
+******************************************************************************/
+{
+    return package_in.channel_value[channel];
+}
+int DSM_RX_TX::get_out_channel_value(int channel)
+/*****************************************************************************
+*   Input    : Channel
+*   Output   : Channel value
+*   Function : Returns the value of the channel (TX frame)
+******************************************************************************/
+{
+    return package_out.channel_value[channel];
 }
 
 bool DSM_RX_TX::DSM_analyse(bool loop)
@@ -251,8 +311,10 @@ bool DSM_RX_TX::DSM_analyse(bool loop)
             RX_TX();
         while (DSM_STATE != DSM_S_IDLE)
             RX_TX();
-        if (debug)
+        if (debug_medium)
             printf("A packet has been recieved and transmitted\n");
+        if (fatal_error)
+            return false;
         return true;
     }
 }
@@ -267,6 +329,7 @@ void DSM_RX_TX::RX_TX()
     switch (DSM_STATE) {
         case DSM_S_IDLE: // *** IDLE mode ***
             if (modify_packets and !packet_modified) {
+                decode_packet(package_in);
                 change_packet_values(package_in, package_out);
                 packet_modified = true; // Do it once per packet
             } else if (!modify_packets)
@@ -289,6 +352,12 @@ void DSM_RX_TX::RX_TX()
                 time_byte = currentTimeUs();
                 byte_in = serialGetchar(ser_handle); //RX byte
                 byte_counter++;
+                success_bytes++;
+
+                if (debug_simple)
+                    if (success_bytes%5000 == 0) {
+                        printf("Recieved and transmitted %i bytes\n",success_bytes);
+                    }
 
                 // TX prevoius frame
                 switch (BYTE_TYPE) {
@@ -299,7 +368,8 @@ void DSM_RX_TX::RX_TX()
                         serialPutchar(ser_handle,package_out.byte_L[ (byte_counter / 2) -1]);
                         break;
                     default:
-                        printf("BYTE_TYPE bool has unrecognizable value\n");
+                        if (debug_expert)
+                            printf("BYTE_TYPE bool has unrecognizable value\n");
                         fatal_error = true;
                         break;
                 }
@@ -327,7 +397,8 @@ void DSM_RX_TX::RX_TX()
                                 }
                                 else
                                 {
-                                    printf("Switching to UNSAFE mode due to bad sync\n");
+                                    if (debug_medium)
+                                        printf("Switching to UNSAFE mode due to bad sync\n");
                                     safe_zone_syncs = 0;
                                     last_sync_dist = 0;
                                     safe_mode = false;
@@ -338,7 +409,8 @@ void DSM_RX_TX::RX_TX()
                                 PREAMBLE = false;
                                 break; // Break for BYTE_TYPE LOW
                             default: // *** BYTE_TYPE = not known ***
-                                printf("BYTE_TYPE bool has unrecognizable value\n");
+                                if (debug_expert)
+                                    printf("BYTE_TYPE bool has unrecognizable value\n");
                                 fatal_error = true; // This is really bad!
                                 break; // Break for BYTE_TYPE not known
                         }
@@ -362,13 +434,15 @@ void DSM_RX_TX::RX_TX()
                                 }
                                 break; // Break for BYTE_TYPE LOW
                             default:
-                                printf("BYTE_TYPE bool has unrecognizable value\n");
+                                if (debug_expert)
+                                    printf("BYTE_TYPE bool has unrecognizable value\n");
                                 fatal_error = true;
                                 break; // Break for BYTE_TYPE not known
                         }
                         break; // Break for PREAMBLE false
                     default:  // *** BYTE_TYPE = not known ***
-                        printf("PREAMBLE bool has unrecognizable value\n");
+                        if (debug_medium)
+                            printf("PREAMBLE bool has unrecognizable value\n");
                         fatal_error = true; // This is really bad!
                         break; // Break for BYTE_TYPE not known
                 }
@@ -378,6 +452,11 @@ void DSM_RX_TX::RX_TX()
             if(avail_bytes = serialDataAvail(ser_handle))
             {
                 UNSAFE_counter++;
+                if (debug_expert and UNSAFE_counter%50 == 0) {
+                    printf("%i bytes have been unsafe\n", UNSAFE_counter);
+                    printf("%i is reset and %i is fatal\n", RESET_SYNC_THRESHOLD*16, FATAL_SYNC_THRESHOLD*16);
+                }
+                success_bytes = 0;
                 old_byte_in = byte_in;
                 time_last_byte = time_byte;
                 time_byte = currentTimeUs();
@@ -392,12 +471,14 @@ void DSM_RX_TX::RX_TX()
                 {
                     sync_value_expected = sync_value;
                     sync_value_expected_next = sync_value + 45;
-                    printf("Last_sync_dist: %i\n",last_sync_dist);
+                    if (debug_expert)
+                        printf("Last_sync_dist: %i\n",last_sync_dist);
                     if((safe_zone_syncs > 0 && last_sync_dist == 15) || safe_zone_syncs == 0)
                     {
                         safe_zone_syncs++;
                         last_sync_dist = 0;
-                        printf("Safe_zone_zyncs: %i Sync_value: %i Sync_value_expected: %i Sync_value_expected_next: %i \n",safe_zone_syncs,sync_value,sync_value_expected,sync_value_expected_next);
+                        if (debug_expert)
+                            printf("Safe_zone_zyncs: %i Sync_value: %i Sync_value_expected: %i Sync_value_expected_next: %i \n",safe_zone_syncs,sync_value,sync_value_expected,sync_value_expected_next);
                     }
                     else if(safe_zone_syncs>0)
                         safe_zone_syncs--;
@@ -412,12 +493,16 @@ void DSM_RX_TX::RX_TX()
                     PREAMBLE = true;
                     BYTE_TYPE = HIGH;
                     DSM_STATE = DSM_S_SAFE;
-                    printf("Exiting unsafe zone\n");
+                    if (debug_medium)
+                        printf("Exiting unsafe zone\n");
                     break;
                 }
 
                 if (UNSAFE_counter == RESET_SYNC_THRESHOLD*16)
                 {
+                    if (debug_medium) {
+                        printf("The expected sync value has been reset\n");
+                    }
                     sync_value_expected = 0;
                     sync_value_expected_next = sync_value + 45;
                 }
@@ -441,7 +526,8 @@ void DSM_RX_TX::enable_all_max()
 ******************************************************************************/
 {
     packet_max_value = true;
-    printf("All packages are now set to 1700");
+    if (debug_simple)
+        printf("All packages are now set to 1700");
 }
 
 void DSM_RX_TX::disable_all_max()
@@ -452,23 +538,61 @@ void DSM_RX_TX::disable_all_max()
 ******************************************************************************/
 {
     packet_max_value = false;
-    printf("All packages are not set to 1700");
+    if (debug_simple)
+        printf("All packages are not set to 1700");
 }
 
-void DSM_RX_TX::change_channel_offsets(int channel1, int channel2, int channel3, int channel4, int channel5, int channel6)
+void DSM_RX_TX::change_channel_offsets(int channel0_offset_value, int channel1_offset_value, int channel2_offset_value, int channel3_offset_value, int channel4_offset_value, int channel5_offset_value, int channel6_offset_value)
 /*****************************************************************************
 *   Input    : None
 *   Output   : None
 *   Function : Sets the channel offsets
 ******************************************************************************/
 {
-    channel1_offset = channel1;
-    channel2_offset = channel2;
-    channel3_offset = channel3;
-    channel4_offset = channel4;
-    channel5_offset = channel5;
-    channel6_offset = channel6;
+    channel0_offset = channel0_offset_value;
+    channel1_offset = channel1_offset_value;
+    channel2_offset = channel2_offset_value;
+    channel3_offset = channel3_offset_value;
+    channel4_offset = channel4_offset_value;
+    channel5_offset = channel5_offset_value;
+    channel6_offset = channel6_offset_value;
 
     if (packet_max_value)
-        printf("Note that the offsets are overridden by max values, use disable_all_max to disable");
+        if (debug_simple)
+            printf("Note that the offsets are overridden by max values, use disable_all_max to disable");
+}
+
+void DSM_RX_TX::change_channel_offset(int channel, int offset)
+/*****************************************************************************
+*   Input    : None
+*   Output   : None
+*   Function : Set the specific channel offset
+******************************************************************************/
+{
+    switch (channel) {
+        case 1:
+            channel1_offset = offset;
+            break;
+        case 2:
+            channel1_offset = offset;
+            break;
+        case 3:
+            channel1_offset = offset;
+            break;
+        case 4:
+            channel1_offset = offset;
+            break;
+        case 5:
+            channel1_offset = offset;
+            break;
+        case 6:
+            channel1_offset = offset;
+            break;
+        default:
+            break;
+    }
+
+    if (packet_max_value)
+        if (debug_simple)
+            printf("Note that the offsets are overridden by max values, use disable_all_max to disable");
 }
