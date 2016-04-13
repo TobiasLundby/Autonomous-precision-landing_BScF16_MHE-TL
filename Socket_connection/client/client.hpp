@@ -16,7 +16,8 @@
 
 
 /*****************************    Defines    *******************************/
-#define SERVER_IP "192.168.43.193"
+#define SERVER_IP "192.168.1.2"   // Hoejgaard on DroneNet
+//#define SERVER_IP "192.168.43.193"  // Hoejgaard on Galaxy
 #define PORT "3400"
 
 typedef struct socket_package{
