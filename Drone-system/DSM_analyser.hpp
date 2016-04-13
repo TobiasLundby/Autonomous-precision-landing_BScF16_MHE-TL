@@ -61,7 +61,7 @@ public: // Methods
     DSM_RX_TX();
     DSM_RX_TX(char* port);
 
-    void DSM_analyse(bool loop);
+    bool DSM_analyse(bool loop);
     void enable_all_max();
     void disable_all_max();
     void change_channel_offsets(int channel1, int channel2, int channel3, int channel4, int channel5, int channel6);
@@ -71,6 +71,8 @@ private: // Methods
     void change_packet_values(package &p_in, package &p_out);
     void RX_TX();
 private: // Variables
+    bool debug = false;
+
     int DSM_STATE = DSM_S_UNSAFE;
     bool safe_mode = false; // Used when going from IDLE mode to either UNSAFE or SAFE
     bool fatal_error = false;
@@ -225,7 +227,7 @@ void DSM_RX_TX::change_packet_values(package &p_in, package &p_out)
     }
 }
 
-void DSM_RX_TX::DSM_analyse(bool loop)
+bool DSM_RX_TX::DSM_analyse(bool loop)
 /*****************************************************************************
 *   Input    : If loop=true then it loops otherwise it runs once.
 *   Output   : None
@@ -241,6 +243,7 @@ void DSM_RX_TX::DSM_analyse(bool loop)
         while (true)
             if(serialDataAvail(ser_handle))
                 serialPutchar(ser_handle,serialGetchar(ser_handle));
+        return false;
     }
     else
     {
@@ -248,7 +251,9 @@ void DSM_RX_TX::DSM_analyse(bool loop)
             RX_TX();
         while (DSM_STATE != DSM_S_IDLE)
             RX_TX();
-        printf("A packet has been recieved and transmitted\n");
+        if (debug)
+            printf("A packet has been recieved and transmitted\n");
+        return true;
     }
 }
 

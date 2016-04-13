@@ -22,7 +22,7 @@ int main(int argc,char* argv[])
   DSM_RX_TX serial_con("/dev/ttyAMA0");
 
   printf("Waiting for packet\n");
-  serial_con.DSM_analyse(false);
+  while(serial_con.DSM_analyse(false)){;}
 
   return 0;
 }
