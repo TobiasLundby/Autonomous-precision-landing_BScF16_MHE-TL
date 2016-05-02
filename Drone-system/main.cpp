@@ -30,6 +30,14 @@ using namespace std;
 #define OFFSET_MAX_CHANGE   10 // The max change in the offset value each 22ms / packet
 #define OFFSET_MAX_RANGE    501 // Max range for the offsets
 
+#define CH4POS0             1704 //
+#define CH4POS1             1192 //
+#define CH4POS2             340  //
+
+#define CH5POS0             340 //
+#define CH5POS1             1704 //
+#define CH5THR              5
+
 /*****************************    Functions    *******************************/
 void print_in_frame(DSM_RX_TX &con)
 {
@@ -161,9 +169,13 @@ int main(int argc,char* argv[])
 
                 serial_con.change_channel_offsets(ch0_off,ch1_off,ch2_off,ch3_off,ch4_off,ch5_off,ch6_off);
 
-                printf("Value from socket is %i and current offset is %i\n", ch0_off_goal, ch0_off);
+                //printf("Value from socket is %i and current offset is %i\n", ch0_off_goal, ch0_off);
                 //print_in_frame(serial_con);
                 //print_out_frame(serial_con);
+
+                if (serial_con.get_in_channel_value(5) < CH5POS1 - CH5THR and serial_con.get_in_channel_value(5) > CH5POS1 + CH5THR) {
+                    ch0_off_goal = -20;
+                }
 
                 sock_pack_out.field0 = serial_con.get_out_channel_value(0);
                 sock_pack_out.field1 = serial_con.get_out_channel_value(1);

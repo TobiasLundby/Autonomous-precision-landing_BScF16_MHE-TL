@@ -76,39 +76,39 @@ private: // Methods
     void change_packet_values(package &p_in, package &p_out);
     void RX_TX();
 private: // Variables
-    bool debug_simple = false;
-    bool debug_medium = false;
-    bool debug_expert = false;
-    bool debug_packet = false;
+    bool debug_simple   = false;
+    bool debug_medium   = false;
+    bool debug_expert   = false;
+    bool debug_packet   = false;
 
-    int DSM_STATE = DSM_S_UNSAFE;
-    bool safe_mode = false; // Used when going from IDLE mode to either UNSAFE or SAFE
-    bool fatal_error = false;
+    int DSM_STATE       = DSM_S_UNSAFE;
+    bool safe_mode      = false; // Used when going from IDLE mode to either UNSAFE or SAFE
+    bool fatal_error    = false;
     bool modify_packets = true;
     bool packet_modified = true;
 
-    bool PREAMBLE = true;
-    bool BYTE_TYPE = HIGH;
-    bool in_sync = true;
+    bool PREAMBLE       = true;
+    bool BYTE_TYPE      = HIGH;
+    bool in_sync        = true;
     int byte_in;
     int old_byte_in;
-    int byte_counter = 0;
-    int last_sync_dist = 0;
-    int UNSAFE_counter = 0;
+    int byte_counter    = 0;
+    int last_sync_dist  = 0;
+    int UNSAFE_counter  = 0;
 
-    int success_bytes = 0;
+    int success_bytes   = 0;
 
     int sync_value;
-    int sync_value_expected = 0;
-    int sync_value_expected_next = sync_value_expected + 45;
-    int safe_zone_syncs = 0;
+    int sync_value_expected         = 0;
+    int sync_value_expected_next    = sync_value_expected + 45;
+    int safe_zone_syncs             = 0;
 
-    long long time_byte = 0;
-    long long time_last_byte = 0;
-    const int frame_timeout = 5000; // micro seconds 1ms=1000us
+    long long time_byte         = 0;
+    long long time_last_byte    = 0;
+    const int frame_timeout     = 5000; // micro seconds 1ms=1000us
 
     int UNSAFE_syncs;
-    int avail_bytes = 0; // 0 since no avaliable bytes when starting up
+    int avail_bytes     = 0; // 0 since no avaliable bytes when starting up
 
     bool packet_max_value = false;
 
@@ -209,7 +209,7 @@ void DSM_RX_TX::decode_channel_value(package &p,int byte)
 {
     int chan_num = (p.byte_H[byte+1]>>3) & 0x0f;
     p.channel_value[chan_num] = ((p.byte_H[byte+1] & 0x07)<<8) | p.byte_L[byte+1];
-    if (debug_packet)
+    if (debug_packet and chan_num == 5)
         printf("Channel %i=%i\n", chan_num, p.channel_value[chan_num]);
 }
 
