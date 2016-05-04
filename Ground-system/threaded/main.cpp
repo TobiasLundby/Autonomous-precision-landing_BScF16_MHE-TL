@@ -5,7 +5,7 @@
 *
 * MODULENAME.: main.cpp
 * PROJECT....: Autonomous precision landing ground system
-* DESCRIPTION: ???
+* DESCRIPTION: Please write a description???
 *
 *****************************************************************************/
 
