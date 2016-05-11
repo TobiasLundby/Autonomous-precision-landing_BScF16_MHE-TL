@@ -25,6 +25,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
+#include <fstream>
 
 using namespace cv;
 using namespace std;
@@ -741,44 +742,54 @@ void drone_tracking::load_shape_im()
 {
   bool debug = false;
 
-  // Load shape image in gray scale from SHAPE_IM_PATH
-  Mat shape_im = imread(SHAPE_IM_PATH,CV_LOAD_IMAGE_GRAYSCALE);
-
-  shape_contours = get_contours(shape_im);      // Get contours in shape_im
-
-  shape_loaded = true;      // Mark shape as loaded
-
-  /*************** DEBUG ******************************************************/
-  if(debug)
+  // Test if shape image exists on path
+  fstream shape_file(SHAPE_IM_PATH);
+  if(shape_file.good())
   {
-    Mat shape_im_color = imread(SHAPE_IM_PATH); // Read frame in color
-    Mat shape_contour0, shape_contour1;         // Frame for contour[0] and [1]
-    shape_im_color.copyTo(shape_contour0);      // Copy color frame to the new
-    shape_im_color.copyTo(shape_contour1);      // frames
+    // Load shape image in gray scale from SHAPE_IM_PATH
+    Mat shape_im = imread(SHAPE_IM_PATH,CV_LOAD_IMAGE_GRAYSCALE);
 
-    show_frame(window_names[8], window_show[8], shape_im);        // Show gray scale shape frame
+    shape_contours = get_contours(shape_im);      // Get contours in shape_im
 
-    for(int i=0;i<shape_contours.size();i++)    // For all contours in frame
+    shape_loaded = true;      // Mark shape as loaded
+
+    /*************** DEBUG ******************************************************/
+    if(debug)
     {
-      drawContours(shape_im_color,shape_contours,i,color_green,1,8,
-        shape_hierarchy,0,Point(0,0));  // Draw it on color frame. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
+      Mat shape_im_color = imread(SHAPE_IM_PATH); // Read frame in color
+      Mat shape_contour0, shape_contour1;         // Frame for contour[0] and [1]
+      shape_im_color.copyTo(shape_contour0);      // Copy color frame to the new
+      shape_im_color.copyTo(shape_contour1);      // frames
+
+      show_frame(window_names[8], window_show[8], shape_im);        // Show gray scale shape frame
+
+      for(int i=0;i<shape_contours.size();i++)    // For all contours in frame
+      {
+        drawContours(shape_im_color,shape_contours,i,color_green,1,8,
+          shape_hierarchy,0,Point(0,0));  // Draw it on color frame. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
+      }
+
+      cout << shape_contours.size() << endl;      // Print number of contours
+      //namedWindow("Contours on shape frame", WINDOW_FREERATIO);
+      show_frame(window_names[9], window_show[9], shape_im_color);  // Show color frame
+
+      drawContours(shape_contour0,shape_contours,0,color_green,4,8,
+        shape_hierarchy,0,Point(0,0));  // Draw contour0 on contour[0]. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
+      drawContours(shape_contour1,shape_contours,1,color_green,4,8,
+        shape_hierarchy,0,Point(0,0));  // Draw contour1 on contour[1]. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
+      //namedWindow("Contour0", WINDOW_FREERATIO);
+      //namedWindow("Contour1", WINDOW_FREERATIO);
+      show_frame(window_names[10], window_show[10], shape_contour0); // Show frames with contour[0] and 1
+      show_frame(window_names[11], window_show[11], shape_contour1);
+
     }
-
-    cout << shape_contours.size() << endl;      // Print number of contours
-    //namedWindow("Contours on shape frame", WINDOW_FREERATIO);
-    show_frame(window_names[9], window_show[9], shape_im_color);  // Show color frame
-
-    drawContours(shape_contour0,shape_contours,0,color_green,4,8,
-      shape_hierarchy,0,Point(0,0));  // Draw contour0 on contour[0]. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
-    drawContours(shape_contour1,shape_contours,1,color_green,4,8,
-      shape_hierarchy,0,Point(0,0));  // Draw contour1 on contour[1]. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
-    //namedWindow("Contour0", WINDOW_FREERATIO);
-    //namedWindow("Contour1", WINDOW_FREERATIO);
-    show_frame(window_names[10], window_show[10], shape_contour0); // Show frames with contour[0] and 1
-    show_frame(window_names[11], window_show[11], shape_contour1);
-
+    /*********** END DEBUG ******************************************************/
   }
-  /*********** END DEBUG ******************************************************/
+  else
+  {
+    cout << "ERROR: Shape image does not exist. Check file path." << endl;
+    exit(1);
+  }
 }
 
 vector<vector<Point>> drone_tracking::get_contours(Mat src_in)
