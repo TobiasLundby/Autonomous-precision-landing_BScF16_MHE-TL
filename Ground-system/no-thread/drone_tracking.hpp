@@ -343,7 +343,7 @@ void drone_tracking::frame_analysis()
   if (debug)
     cout << endl << "Frame: " << global_frame_counter << endl;
 
-  leds = diode_detection();
+  //leds = diode_detection();
 
 
   // Hejgaard analysis
@@ -352,6 +352,7 @@ void drone_tracking::frame_analysis()
   xy_position position_from_shape;    // For position returned
   Mat shape_frame;                    // Frame with only drone masked out
   shape_frame = Mat::zeros( frame_bgr.size(), CV_8UC3 );
+
   get_drone_position(frame_bgr,&position_from_shape, &shape_frame); // Get the position
   show_frame(window_names[4], window_show[4], shape_frame);
 
@@ -629,6 +630,7 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
 
   // Prepare the frame for tracking
   Mat src_frame_color, src_frame_gray, shape_masked;  // A frame for color and gray
+
   src_frame_in.copyTo(src_frame_color); // Make sure not to alter original frame
   cvtColor(src_frame_color,src_frame_gray,COLOR_BGR2GRAY);  // Convert to gray
 
@@ -726,7 +728,6 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
   match_results.clear();      // Delete results
   frame_contours.clear();     // Delete contours
   frame_number++;             // Increment framenumber (MAY FAIL!)
-
   return match_found;
 }
 
