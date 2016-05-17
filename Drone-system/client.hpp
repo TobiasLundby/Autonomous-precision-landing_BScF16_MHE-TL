@@ -25,8 +25,8 @@
 
 
 /*****************************    Defines    *******************************/
-#define SERVER_IP "192.168.1.2"   // Hoejgaard on DroneNet
-//#define SERVER_IP "192.168.43.193"  // Hoejgaard on Galaxy
+//#define SERVER_IP "192.168.1.2"   // Hoejgaard on DroneNet
+#define SERVER_IP "192.168.43.193"  // Hoejgaard on Galaxy
 #define PORT "3400"
 
 /*****************************    Structs    *******************************/
@@ -38,7 +38,19 @@ typedef struct socket_package{
   int field4;
   int field5;
   int field6;
-  int field7;
+  int field7; // Original packet ends here
+  int field8;
+  int field9;
+  int field10;
+  int field11;
+  int field12;
+  int field13;
+  int field14;
+  int field15;
+  int field16;
+  int field17;
+  int field18;
+  int field19;
 } socket_package;
 
 /*****************************   Class   ***********************************/
@@ -207,6 +219,30 @@ std::string socket_client::encode_frame(socket_package package)
   string_out += std::to_string(package.field6);
   string_out += ';';
   string_out += std::to_string(package.field7);
+  string_out += ';';      // Original packet ends here
+  string_out += std::to_string(package.field8);
+  string_out += ';';
+  string_out += std::to_string(package.field9);
+  string_out += ';';
+  string_out += std::to_string(package.field10);
+  string_out += ';';
+  string_out += std::to_string(package.field11);
+  string_out += ';';
+  string_out += std::to_string(package.field12);
+  string_out += ';';
+  string_out += std::to_string(package.field13);
+  string_out += ';';
+  string_out += std::to_string(package.field14);
+  string_out += ';';
+  string_out += std::to_string(package.field15);
+  string_out += ';';
+  string_out += std::to_string(package.field16);
+  string_out += ';';
+  string_out += std::to_string(package.field17);
+  string_out += ';';
+  string_out += std::to_string(package.field18);
+  string_out += ';';
+  string_out += std::to_string(package.field19);
   string_out += ';';
   //retval"return_value";
   //return string_out;
@@ -255,6 +291,18 @@ socket_package socket_client::decode_frame(char string_in[])
   package_in.field5 = get_field_value(string_string_in, &m);
   package_in.field6 = get_field_value(string_string_in, &m);
   package_in.field7 = get_field_value(string_string_in, &m);
+  package_in.field8 = get_field_value(string_string_in, &m);
+  package_in.field9 = get_field_value(string_string_in, &m);
+  package_in.field10 = get_field_value(string_string_in, &m);
+  package_in.field11 = get_field_value(string_string_in, &m);
+  package_in.field12 = get_field_value(string_string_in, &m);
+  package_in.field13 = get_field_value(string_string_in, &m);
+  package_in.field14 = get_field_value(string_string_in, &m);
+  package_in.field15 = get_field_value(string_string_in, &m);
+  package_in.field16 = get_field_value(string_string_in, &m);
+  package_in.field17 = get_field_value(string_string_in, &m);
+  package_in.field18 = get_field_value(string_string_in, &m);
+  package_in.field19 = get_field_value(string_string_in, &m);
 
   return package_in;
 }

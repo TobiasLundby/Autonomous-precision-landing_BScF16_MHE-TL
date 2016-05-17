@@ -26,6 +26,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fstream>
+#include <pthread.h>
+
+#include "interthread_communication.hpp"
 
 using namespace cv;
 using namespace std;
@@ -356,6 +359,31 @@ void drone_tracking::frame_analysis()
 
   get_drone_position(frame_bgr,&position_from_shape, &shape_frame); // Get the position
   show_frame(window_names[4], window_show[4], shape_frame);
+
+
+  // Put someting in the socket packet;
+  pthread_mutex_lock(&mutex_sock_pack_out);
+  sock_pack_out.field0 = 0;
+  sock_pack_out.field1 = 1;
+  sock_pack_out.field2 = 2;
+  sock_pack_out.field3 = 3;
+  sock_pack_out.field4 = 4;
+  sock_pack_out.field5 = 5;
+  sock_pack_out.field6 = 6;
+  sock_pack_out.field7 = 7;
+  sock_pack_out.field8 = 8;
+  sock_pack_out.field9 = 9;
+  sock_pack_out.field10 = 10;
+  sock_pack_out.field11 = 11;
+  sock_pack_out.field12 = 12;
+  sock_pack_out.field13 = 13;
+  sock_pack_out.field14 = 14;
+  sock_pack_out.field15 = 15;
+  sock_pack_out.field16 = 16;
+  sock_pack_out.field17 = 17;
+  sock_pack_out.field18 = 18;
+  sock_pack_out.field19 = 19;
+  pthread_mutex_unlock(&mutex_sock_pack_out);
 
 }
 
