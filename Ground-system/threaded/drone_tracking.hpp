@@ -108,6 +108,8 @@ typedef struct xy_position{   // Struct for xy-position of drone
     double y;                   //  ---""---
     double z;                   // Distance above ground station
     double orientation;        // Might not be used. Not stable yet.
+    double orientation_old;
+    double orientation_old_old;
   } xyz_position;
 
 
@@ -150,7 +152,7 @@ private: // Variables
   VideoCapture capture;
 
  // General variables
-  bool enable_wait = true;
+  bool enable_wait = false;
   int wait_time_ms = 50;
   bool debug = false;
   int global_frame_counter = 0;
@@ -195,6 +197,7 @@ private: // Variables
 
   vector<KeyPoint> leds; // Stores the red LED keypoints
   xyz_position diode_drone;
+  int orientation_max_change = 20;
 
   // MatchShape variables
   bool shape_loaded = false;        // True if shape is loaded
@@ -392,14 +395,50 @@ void drone_tracking::frame_analysis()
   if (enable_wait)
     waitKey(wait_time_ms); // Wait if enabled, typically used for manual debug
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
-  show_frame(window_names[0], window_show[0], frame_bgr); // Show original frame
+  // SHOWING THE INPUT FRAME BELOW
   if (debug)
     cout << endl << "Frame: " << global_frame_counter << endl;
 
   leds = diode_detection();
-  if (find_position(leds, diode_drone)) {
-     //A position for the drone has been found
+  double scale_factor;
+  double temp_scale_factor = 0;
+  for (size_t i = 0; i < leds.size() - 1; i++) {
+    for (size_t j = i + 1; j < leds.size(); j++) {
+      temp_scale_factor += calc_dist(leds[i], leds[j]);
+    }
   }
+  temp_scale_factor /= leds.size();
+  cout << temp_scale_factor << endl;
+
+  scale_factor = temp_scale_factor/400;
+  double rect_p_gain = 1.10;
+  int x_mid = 1920/2;
+  int y_mid = 1080/2;
+  int x_base = 500;
+  int y_base = 400;
+  rectangle( frame_bgr, Point( x_mid-((x_base*scale_factor*rect_p_gain)/2), y_mid-((y_base*scale_factor*rect_p_gain)/2) ), Point( x_mid+((x_base*scale_factor*rect_p_gain)/2), y_mid+((y_base*scale_factor*rect_p_gain)/2)), Scalar( 0, 0, 255 ), +1, 4 );
+  show_frame(window_names[0], window_show[0], frame_bgr); // Show original frame
+
+  bool force_down = false;
+  int diodes_inside = 0;
+  for (size_t i = 0; i < leds.size(); i++) {
+    if ((leds[i].pt.x > x_mid-((x_base*scale_factor*rect_p_gain)/2) and leds[i].pt.x < x_mid+((x_base*scale_factor*rect_p_gain)/2)) and
+    (leds[i].pt.y > y_mid-((y_base*scale_factor*rect_p_gain)/2) and leds[i].pt.y < y_mid+((y_base*scale_factor*rect_p_gain)/2))) {
+      cout << "led inside: " << i << endl;
+      diodes_inside++;
+    }
+  }
+  if (diodes_inside == leds.size())
+    force_down = true;
+
+  /*
+  if (find_position(leds, diode_drone)) {
+     //if (diode_drone.orientation < diode_drone.orientation - orientation_max_change and diode_drone.orientation > diode_drone.orientation + orientation_max_change) {
+    //   diode_drone.orientation = diode_drone.orientation_old;
+     //}
+  }
+  */
+  //cout << "Drone orientation is "<< diode_drone.orientation << endl;
 
 
 
@@ -416,7 +455,7 @@ void drone_tracking::frame_analysis()
 
   // Put someting in the socket packet;
   pthread_mutex_lock(&mutex_sock_pack_out);
-  sock_pack_out.field0 = 0;
+  sock_pack_out.field0 = force_down;
   sock_pack_out.field1 = 1;
   sock_pack_out.field2 = 2;
   sock_pack_out.field3 = 3;
@@ -712,10 +751,28 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
             delta_x = diode_keypoints[diode2_3or4].pt.x - diode_keypoints[diode1_3or4].pt.x;
             delta_y = diode_keypoints[diode2_3or4].pt.y - diode_keypoints[diode1_3or4].pt.y;
           }
+          drone_position.orientation_old_old = drone_position.orientation_old;
+          drone_position.orientation_old = drone_position.orientation;
           drone_position.orientation = (atan2(delta_y, delta_x) * 180 / M_PI);// - 98.945;
+          /*
+          bool rot_cor = false; // rotation correction
+          for (size_t i = 0; i < diode_keypoints.size(); i++)
+            if ((i != diode1_3or4 or i != diode2_3or4) and !rot_cor) {
+              if (diode_keypoints[i].pt.y < diode_keypoints[diode1_3or4].pt.y and
+                diode_keypoints[i].pt.y < diode_keypoints[diode2_3or4].pt.y) {
+                rot_cor = true;
+              }
+            }
+          if (rot_cor)
+            drone_position.orientation += 90;
+          else
+            drone_position.orientation += 270;
+          */
+
           cout << "[2] Drone has orientation: " << drone_position.orientation << " (calculated from point " << diode1_3or4 << " and " << diode2_3or4 << ")" << endl;
           cout << " [2] Diode1: " << diode1_3or4 << ": " << diode_keypoints[diode1_3or4].pt.x << ", " << diode_keypoints[diode1_3or4].pt.y << endl;
           cout << " [2] Diode2: " << diode2_3or4 << ": " << diode_keypoints[diode2_3or4].pt.x << ", " << diode_keypoints[diode2_3or4].pt.y << endl;
+
           // Find position for 3 diodes
           return true;
         }
@@ -730,12 +787,38 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
         delta_x = diode_keypoints[min_dist1_diode2].pt.x - diode_keypoints[min_dist1_diode1].pt.x;
         delta_y = diode_keypoints[min_dist1_diode2].pt.y - diode_keypoints[min_dist1_diode1].pt.y;
       }
-      //double delta_x = diode_keypoints[min_dist1_diode1].pt.x - diode_keypoints[min_dist1_diode2].pt.x;
-      //double delta_y = diode_keypoints[min_dist1_diode1].pt.y - diode_keypoints[min_dist1_diode2].pt.y;
+      drone_position.orientation_old_old = drone_position.orientation_old;
+      drone_position.orientation_old = drone_position.orientation;
       drone_position.orientation = atan2(delta_y, delta_x) * 180 / M_PI;
+      /*
+      bool rot_cor = false; // rotation correction
+      for (size_t i = 0; i < diode_keypoints.size(); i++)
+        if ((i != min_dist1_diode1 or i != min_dist1_diode2) and !rot_cor) {
+          if (diode_keypoints[i].pt.y < diode_keypoints[min_dist1_diode1].pt.y and
+            diode_keypoints[i].pt.y < diode_keypoints[min_dist1_diode2].pt.y) {
+            rot_cor = true;
+          }
+        }
+      if (rot_cor)
+        drone_position.orientation += 270;
+      else
+        drone_position.orientation += 90;
+      */
+
+      /*
+      double temp_y = 0;
+      for (size_t i = 0; i < diode_keypoints.size(); i++)
+        if (i != min_dist1_diode1 or i != min_dist1_diode2)
+          temp_y += diode_keypoints[i].pt.y;
+      temp_y /= (diode_keypoints.size()-2);
+      if (temp_y < ((diode_keypoints[min_dist1_diode1].pt.y + diode_keypoints[min_dist1_diode2].pt.y)/2))
+        drone_position.orientation += 180;
+      */
+
       cout << "[1] Drone has orientation: " << drone_position.orientation << " (calculated from point " << min_dist1_diode1 << " and " << min_dist1_diode2 << ")" << endl;
       cout << " [1] Diode1: " << min_dist1_diode1 << ": " << diode_keypoints[min_dist1_diode1].pt.x << ", " << diode_keypoints[min_dist1_diode1].pt.y << endl;
       cout << " [1] Diode2: " << min_dist1_diode2 << ": " << diode_keypoints[min_dist1_diode2].pt.x << ", " << diode_keypoints[min_dist1_diode2].pt.y << endl;
+
       // Find position for 4 diodes
       //Calculate position
       return true;
