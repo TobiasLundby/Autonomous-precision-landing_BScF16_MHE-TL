@@ -19,6 +19,7 @@
 
 #include "drone_tracking.hpp"
 #include "interthread_communication.hpp"
+#include "server.hpp"
 
 using namespace cv;
 using namespace std;

@@ -3,7 +3,7 @@ CFLAGS= -c -std=c++11 -fPIE #-g #Compiler Flags #-Ofast
 DEFINES=-DENABLE_DELETE
 INCPATH=
 
-LDFLAGS=-lwiringPi #Linker options
+LDFLAGS=-lwiringPi -lpthread #Linker options
 
 SOURCES= main.cpp  $(MOCFILES) #cpp files
 
