@@ -126,6 +126,7 @@ private: // Methods
   vector<KeyPoint> diode_detection();
   bool find_position(vector<KeyPoint>, xyz_position&);
   double calc_dist(KeyPoint, KeyPoint);
+  //double get_orientation(Mat);
   vector<KeyPoint> keypoint_detection(Mat, Mat, Mat);
   vector<KeyPoint> keypoint_filtering(vector<KeyPoint>, bool, Mat);
   void window_taskbar_create(int);
@@ -151,7 +152,7 @@ private: // Variables
  // General variables
   bool enable_wait = true;
   int wait_time_ms = 50;
-  bool debug = true;
+  bool debug = false;
   int global_frame_counter = 0;
   int start_skip_frames = 0;
 
@@ -399,7 +400,7 @@ void drone_tracking::frame_analysis()
   if (debug)
     cout << endl << "Frame: " << global_frame_counter << endl;
 
-  //leds = diode_detection();
+  leds = diode_detection();
   //if (find_position(leds, diode_drone)) {
      //A position for the drone has been found
   //}
@@ -490,6 +491,7 @@ vector<KeyPoint> drone_tracking::diode_detection()
   for (size_t i = 0; i < dilate_color_iterations; i++)
     dilate(mask_red, mask_red, Mat(), Point(-1,-1)); // Enhance the red areas in the image
   frame_bgr.copyTo(frame_red, mask_red); // Copy frame_bgr to frame_red but only the area marked in the red_mask
+  //cout << "Orientation: " << get_orientation(mask_red) << endl;
 
   vector<KeyPoint> detected_leds;
   detected_leds = keypoint_detection(frame_gray, frame_gray_with_Gblur, mask_red); // Detect the red LEDs
@@ -560,6 +562,22 @@ vector<KeyPoint> drone_tracking::keypoint_detection(Mat in_frame_gray, Mat in_fr
 
   return temp_keypoints;
 }
+
+/*
+double drone_tracking::get_orientation(Mat red_mask_local)
+{
+  Mat mask_grey;
+  red_mask_local.copyTo(mask_grey);
+  Moments moment = moments(mask_grey,false);  // Calculate moments. Arguments - 1st: a contour, 2nd: binary image, if true all nonzero pixels are treated as 1's
+  //pos->x = moment.m10/moment.m00;            // Calculate x position
+  //pos->y = moment.m01/moment.m00;            // Calculate y position
+  // Calculate orientation (may not be correct). Based on link above
+  double orientation = 0.5 * atan(2 * moment.m11 / (moment.m20 - moment.m02));
+  double orientation_out = (orientation / M_PI) * 180;
+
+  return orientation_out;
+}
+*/
 
 vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoints, bool in_secondary_detection_run, Mat in_mask_red)
 /*****************************************************************************
