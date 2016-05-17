@@ -70,7 +70,7 @@ using namespace std;
 # define DIODE_4_CENTER DIODE_3_CENTER
 
     // Tolerances
-# define DIODE_TOLERANCE  0.025 // Added to relation
+# define DIODE_TOLERANCE  0.05 // Added to relation
 # define CENTER_TOLERANCE 0.025 // Added to relation
 
 
@@ -151,7 +151,7 @@ private: // Variables
  // General variables
   bool enable_wait = true;
   int wait_time_ms = 50;
-  bool debug = true;
+  bool debug = false;
   int global_frame_counter = 0;
   int start_skip_frames = 0;
 
@@ -284,15 +284,15 @@ void drone_tracking::create_windows()
 
   // Diode detection
   window_names.push_back("Recognized red LEDs"); window_show.push_back(true); //Window 1 *
-  window_names.push_back("Color mask"); window_show.push_back(false); //Window 2 *
-  window_names.push_back("Color seperation frame"); window_show.push_back(false); //Window 3 *
+  window_names.push_back("Color mask"); window_show.push_back(true); //Window 2 *
+  window_names.push_back("Color seperation frame"); window_show.push_back(true); //Window 3 *
   //window_names.push_back("Other2"); window_show.push_back(true);//Window 4
   //window_names.push_back("Other3"); window_show.push_back(true);//Window 5
 
   // Shape detection
   window_names.push_back("Drone shape"); window_show.push_back(false); //Window 4 *
   window_names.push_back("Frame contours"); window_show.push_back(false); //Window 5
-  window_names.push_back("Tracking"); window_show.push_back(true); //Window 6 *
+  window_names.push_back("Tracking"); window_show.push_back(false); //Window 6 *
   window_names.push_back("Drone masked out, inside"); window_show.push_back(false); //Window 7 *
   window_names.push_back("Shape frame"); window_show.push_back(false); //Window 8
   window_names.push_back("Contours on shape frame"); window_show.push_back(false); //Window 9
@@ -301,7 +301,7 @@ void drone_tracking::create_windows()
   window_names.push_back("Thresholded frame"); window_show.push_back(false); //Window 12
   window_names.push_back("Erode"); window_show.push_back(false); //Window 13
   window_names.push_back("Dilate"); window_show.push_back(false); //Window 14
-  window_names.push_back("Settings"); window_show.push_back(true); //Window 15
+  window_names.push_back("Settings"); window_show.push_back(false); //Window 15
   window_names.push_back("Contourx"); window_show.push_back(false); // 16
   //window_names.push_back("Window N"); window_show.push_back(true); //Window N
   if (window_enable)
@@ -368,10 +368,6 @@ void drone_tracking::window_taskbar_create(int window_number)
 */
 }
 
-
-
-
-
 void drone_tracking::show_frame(string window_text, bool show_this_frame, Mat in_frame)
 /*****************************************************************************
 *   Input    : None
@@ -399,10 +395,10 @@ void drone_tracking::frame_analysis()
   if (debug)
     cout << endl << "Frame: " << global_frame_counter << endl;
 
-  //leds = diode_detection();
-  //if (find_position(leds, diode_drone)) {
+  leds = diode_detection();
+  if (find_position(leds, diode_drone)) {
      //A position for the drone has been found
-  //}
+  }
 
 
 
@@ -627,10 +623,12 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
         }
       }
     }
+    /*
     cout << "Smallest relation test" << endl;
     cout << "Min diode 1: " << min_dist1_diode1 << endl;
     cout << "Min diode 2: " << min_dist1_diode2 << endl;
     cout << "Min dist is: " << min_dist1 << endl;
+    */
     // Determine diode 3 or 4
     int diode1_3or4 = diode_keypoints.size()+1; // The diode from the smallest relation and related to diode 3 or 4. Set to that value so we can check if it is found
     int diode2_3or4 = diode_keypoints.size()+1; // Actual diode 3 or 4. Set to that value so we can check if it is found
@@ -640,10 +638,11 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
         if (temp_dist/min_dist1 > DIODE_1_4-DIODE_TOLERANCE and temp_dist/min_dist1 < DIODE_1_4+DIODE_TOLERANCE) {
           diode1_3or4 = min_dist1_diode1;
           diode2_3or4 = i;
-          cout << "Relation is: " << temp_dist/min_dist1 << endl;
+          //cout << "Relation is: " << temp_dist/min_dist1 << endl;
         }
       }
     }
+    /*
     if (diode1_3or4 < diode_keypoints.size() and diode1_3or4 < diode_keypoints.size()) {
       cout << "Bottom relation" << endl;
       cout << "Ref diode: " << diode1_3or4 << endl;
@@ -651,6 +650,7 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
     } else {
       cout << " --- no bottom relation found ---" << endl;
     }
+    */
     if (diode2_3or4 > diode_keypoints.size() ) { // If the diode is not found it looks through the other diodes relations
       for (size_t i = 0; i < diode_keypoints.size(); i++) {
         if (i != min_dist1_diode1 and i != min_dist1_diode2) {
@@ -661,54 +661,64 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
           }
         }
       }
-    }
-    if (diode2_3or4 > diode_keypoints.size()) { // Diode 1 or 2 has not been found so the relation is another
-      for (size_t i = 0; i < diode_keypoints.size(); i++) {
-        if (i != min_dist1_diode1 and i != min_dist1_diode2) {
-          temp_dist = calc_dist(diode_keypoints[min_dist1_diode1], diode_keypoints[i]);
-          if (temp_dist/min_dist1 > DIODE_3_4_SECONDARY-DIODE_TOLERANCE and temp_dist/min_dist1 < DIODE_3_4_SECONDARY+DIODE_TOLERANCE) {
-            diode1_3or4 = min_dist1_diode1;
-            diode2_3or4 = i;
-          }
-        }
-      }
       if (diode2_3or4 > diode_keypoints.size()) { // Diode 1 or 2 has not been found so the relation is another
         for (size_t i = 0; i < diode_keypoints.size(); i++) {
           if (i != min_dist1_diode1 and i != min_dist1_diode2) {
-            temp_dist = calc_dist(diode_keypoints[min_dist1_diode2], diode_keypoints[i]);
+            temp_dist = calc_dist(diode_keypoints[min_dist1_diode1], diode_keypoints[i]);
             if (temp_dist/min_dist1 > DIODE_3_4_SECONDARY-DIODE_TOLERANCE and temp_dist/min_dist1 < DIODE_3_4_SECONDARY+DIODE_TOLERANCE) {
-              diode1_3or4 = min_dist1_diode2;
+              diode1_3or4 = min_dist1_diode1;
               diode2_3or4 = i;
             }
           }
         }
-      }
-      if (diode2_3or4 > diode_keypoints.size()) { // no relation was found during secondary analysis, retuning false
-        return false;
-      } else {
-        //Calculate position
-        double delta_x = diode_keypoints[diode1_3or4].pt.x - diode_keypoints[diode2_3or4].pt.x;
-        double delta_y = diode_keypoints[diode1_3or4].pt.y - diode_keypoints[diode2_3or4].pt.y;
-        drone_position.orientation = (atan2(delta_y, delta_x) * 180 / M_PI);// - 98.945;
-        cout << "[2] Drone has orientation: " << drone_position.orientation << " (calculated from point " << diode1_3or4 << " and " << diode2_3or4 << ")" << endl;
-        return true;
+        if (diode2_3or4 > diode_keypoints.size()) { // Continue on the relation test
+          for (size_t i = 0; i < diode_keypoints.size(); i++) {
+            if (i != min_dist1_diode1 and i != min_dist1_diode2) {
+              temp_dist = calc_dist(diode_keypoints[min_dist1_diode2], diode_keypoints[i]);
+              if (temp_dist/min_dist1 > DIODE_3_4_SECONDARY-DIODE_TOLERANCE and temp_dist/min_dist1 < DIODE_3_4_SECONDARY+DIODE_TOLERANCE) {
+                diode1_3or4 = min_dist1_diode2;
+                diode2_3or4 = i;
+              }
+            }
+          }
+        }
+        if (diode2_3or4 > diode_keypoints.size()) { // no relation was found during secondary analysis, retuning false
+          return false;
+        } else {
+          // Find rotation for 3 diodes
+          double delta_x, delta_y;
+          if (diode_keypoints[diode1_3or4].pt.x > diode_keypoints[diode2_3or4].pt.x) {
+            delta_x = diode_keypoints[diode1_3or4].pt.x - diode_keypoints[diode2_3or4].pt.x;
+            delta_y = diode_keypoints[diode1_3or4].pt.y - diode_keypoints[diode2_3or4].pt.y;
+          } else {
+            delta_x = diode_keypoints[diode2_3or4].pt.x - diode_keypoints[diode1_3or4].pt.x;
+            delta_y = diode_keypoints[diode2_3or4].pt.y - diode_keypoints[diode1_3or4].pt.y;
+          }
+          drone_position.orientation = (atan2(delta_y, delta_x) * 180 / M_PI);// - 98.945;
+          cout << "[2] Drone has orientation: " << drone_position.orientation << " (calculated from point " << diode1_3or4 << " and " << diode2_3or4 << ")" << endl;
+          cout << " [2] Diode1: " << diode1_3or4 << ": " << diode_keypoints[diode1_3or4].pt.x << ", " << diode_keypoints[diode1_3or4].pt.y << endl;
+          cout << " [2] Diode2: " << diode2_3or4 << ": " << diode_keypoints[diode2_3or4].pt.x << ", " << diode_keypoints[diode2_3or4].pt.y << endl;
+          // Find position for 3 diodes
+          return true;
+        }
       }
     } else {
-      // Find rotation
-      double delta_x = diode_keypoints[min_dist1_diode1].pt.x - diode_keypoints[min_dist1_diode2].pt.x;
-      double delta_y = diode_keypoints[min_dist1_diode1].pt.y - diode_keypoints[min_dist1_diode2].pt.y;
+      // Find rotation for 4 diodes
+      double delta_x, delta_y;
+      if (diode_keypoints[min_dist1_diode1].pt.x > diode_keypoints[min_dist1_diode2].pt.x) {
+        delta_x = diode_keypoints[min_dist1_diode1].pt.x - diode_keypoints[min_dist1_diode2].pt.x;
+        delta_y = diode_keypoints[min_dist1_diode1].pt.y - diode_keypoints[min_dist1_diode2].pt.y;
+      } else {
+        delta_x = diode_keypoints[min_dist1_diode2].pt.x - diode_keypoints[min_dist1_diode1].pt.x;
+        delta_y = diode_keypoints[min_dist1_diode2].pt.y - diode_keypoints[min_dist1_diode1].pt.y;
+      }
+      //double delta_x = diode_keypoints[min_dist1_diode1].pt.x - diode_keypoints[min_dist1_diode2].pt.x;
+      //double delta_y = diode_keypoints[min_dist1_diode1].pt.y - diode_keypoints[min_dist1_diode2].pt.y;
       drone_position.orientation = atan2(delta_y, delta_x) * 180 / M_PI;
       cout << "[1] Drone has orientation: " << drone_position.orientation << " (calculated from point " << min_dist1_diode1 << " and " << min_dist1_diode2 << ")" << endl;
-
-      /*
-      xy_position center1;
-      xy_position center2;
-      xy_position center3;
-      xy_position center4;
-      */
-
-
-      // Diode 1 or 2 and 3 or 4 has been found
+      cout << " [1] Diode1: " << min_dist1_diode1 << ": " << diode_keypoints[min_dist1_diode1].pt.x << ", " << diode_keypoints[min_dist1_diode1].pt.y << endl;
+      cout << " [1] Diode2: " << min_dist1_diode2 << ": " << diode_keypoints[min_dist1_diode2].pt.x << ", " << diode_keypoints[min_dist1_diode2].pt.y << endl;
+      // Find position for 4 diodes
       //Calculate position
       return true;
     }
@@ -717,12 +727,14 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
 
   }*/
 
+  /*
   // Tests - start
   drone_position.x = 0;
   cout << "Y: " << drone_position.y << endl << endl;
   if (diode_keypoints.size()) {
     cout << "Y: " << diode_keypoints[0].pt.x << endl << endl;
   }
+  */
   // Tests - end
   return true;
 }
