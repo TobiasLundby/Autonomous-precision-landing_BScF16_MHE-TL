@@ -33,13 +33,46 @@
 using namespace cv;
 using namespace std;
 /*****************************    Defines    *******************************/
+// Diode  tracking
 # define M_PI           3.14159265358979323846  /* pi */
 # define HUE_ORANGE     11                      /* 0-22 */
 # define HUE_YELLOW     30                      /* 22-38 */
 # define HUE_GREEN      60                      /* 38-75 */
+# define HUE_GREEN_LED  45                      /* 38-75 */
 # define HUE_BLUE       100                      /* 75-130 */
 # define HUE_VIOLET     145                      /* 130-160 */
 # define HUE_RED        160                      /* 160-179; since the red color appears darker, more towards blue, 160 is choosen */
+
+    // Diode relations (all realtions are caculated in regards to the distance between LED 1 and 2 which is 21.4 cm)
+# define DIODE_1_2      1.00000000000
+# define DIODE_1_3      1.58728971963
+# define DIODE_1_4      1.08878504673
+
+# define DIODE_2_1      DIODE_1_2
+# define DIODE_2_3      DIODE_1_4
+# define DIODE_2_4      DIODE_1_3
+
+# define DIODE_3_1      DIODE_1_3
+# define DIODE_3_2      DIODE_1_4
+# define DIODE_3_4      1.29439252336
+
+# define DIODE_4_1      DIODE_1_4
+# define DIODE_4_2      DIODE_1_3
+# define DIODE_4_3      DIODE_3_4
+
+# define DIODE_3_4_SECONDARY  1.18884120172 // used if diode 1 or 2 is not visible
+# define DIODE_4_3_SECONDARY  DIODE_3_4_SECONDARY
+
+    // Center relation (all realtions are caculated in regards to the distance between LED 1 and 2 which is 21.4 cm)
+# define DIODE_1_CENTER 0.67289719626
+# define DIODE_2_CENTER DIODE_1_CENTER
+# define DIODE_3_CENTER 0.91588785046
+# define DIODE_4_CENTER DIODE_3_CENTER
+
+    // Tolerances
+# define DIODE_TOLERANCE  0.025 // Added to relation
+# define CENTER_TOLERANCE 0.025 // Added to relation
+
 
 
 // Drone shape tracking
@@ -90,6 +123,8 @@ private: // Methods
   void frame_save(Mat&);
   void frame_save(Mat&, string);
   vector<KeyPoint> diode_detection();
+  bool find_position(vector<KeyPoint>, xyz_position&);
+  double calc_dist(KeyPoint, KeyPoint);
   vector<KeyPoint> keypoint_detection(Mat, Mat, Mat);
   vector<KeyPoint> keypoint_filtering(vector<KeyPoint>, bool, Mat);
   void window_taskbar_create(int);
@@ -113,9 +148,9 @@ private: // Variables
   VideoCapture capture;
 
  // General variables
-  bool enable_wait = false;
+  bool enable_wait = true;
   int wait_time_ms = 500;
-  bool debug = true;
+  bool debug = false;
   int global_frame_counter = 0;
   int start_skip_frames = 0;
 
@@ -136,8 +171,8 @@ private: // Variables
 
  // Diode detection Variables
   // HSV limits for color seperation (presumably changable)
-  int hsv_h_base        = HUE_RED; //60 is for green, 160 is for red
-  int hsv_h_sensitivity = 24;
+  int hsv_h_base        = HUE_GREEN_LED; //60 is for green, 160 is for red
+  int hsv_h_sensitivity = 5; // 5 for big green led and 24 for most other
   int hsv_h_low         = hsv_h_base - hsv_h_sensitivity;
   int hsv_h_upper       = hsv_h_base + hsv_h_sensitivity;
   int hsv_s_low         = 100;
@@ -152,11 +187,13 @@ private: // Variables
   bool second_detection_run = false;
 
   int mean_multiply_factor = 1000000; //Effects the one below linear
-  int color_threashold_1 = 110;
-  int color_threashold_2 = 80;
+  int color_threashold_1 = 60;
+  int color_threashold_2 = 40;
   int hue_radius = 20; // [%]
 
   vector<KeyPoint> leds; // Stores the red LED keypoints
+  xyz_position diode_drone;
+
   // MatchShape variables
   bool shape_loaded = false;        // True if shape is loaded
   vector<vector<Point>> shape_contours, frame_contours; // Contours
@@ -172,8 +209,8 @@ private: // Variables
   int thresh_tresh = THRESH_THRESH;
 
 
-  bool wait_enable = true;
-  int wait_time = 100;
+  bool wait_enable = false;
+  int wait_time = 0;
 
   // Match shape constants
   Scalar color_green = Scalar(0,255,0), color_red = Scalar(0,0,255);
@@ -297,6 +334,10 @@ void drone_tracking::window_taskbar_create(int window_number)
 {
   if (window_number==1) // Test which window window_taskbar_create is called with
      createTrackbar("Threashold", window_names[window_number], &color_threashold_1, 1000); // 1st arg: name; 2nd arg: window; 3rd arg: pointer to the variabel (must be int); 4th arg: max value
+  if (window_number=2 and 1 != 1){ // Test which window window_taskbar_create is called with
+      createTrackbar("HUE GREEN LOW", window_names[window_number], &hsv_h_low, 255);
+      createTrackbar("HUE GREEN UPPER", window_names[window_number], &hsv_h_upper, 255);
+  }
   if (window_number==3) // Test which window window_taskbar_create is called with
      createTrackbar("Dilate iterations", window_names[window_number], &dilate_color_iterations, 10); // 1st arg: name; 2nd arg: window; 3rd arg: pointer to the variabel (must be int); 4th arg: max value
   if (window_number==15)
@@ -354,6 +395,10 @@ void drone_tracking::frame_analysis()
     cout << endl << "Frame: " << global_frame_counter << endl;
 
   leds = diode_detection();
+  if (find_position(leds, diode_drone)) {
+     //A position for the drone has been found
+  }
+
 
 
   // Hejgaard analysis
@@ -472,7 +517,7 @@ vector<KeyPoint> drone_tracking::keypoint_detection(Mat in_frame_gray, Mat in_fr
   // Filter by Area.
   params.filterByArea = true;
   params.minArea = 3;
-  params.maxArea = 300;
+  params.maxArea = 600;
   // Filter by Circularity - we do not do this parameter due to motion blur
   params.filterByCircularity = false;
   params.minCircularity = 0.5;
@@ -502,7 +547,10 @@ vector<KeyPoint> drone_tracking::keypoint_detection(Mat in_frame_gray, Mat in_fr
   drawKeypoints( frame_bgr, keypoints, im_with_keypoints, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS ); // Show the keypoints on a frame. 1st arg: input frame; 2nd arg: vector with keypoints to be drawn; 3rd arg: output frame; 4th arg: color of the drawn keypoints (red here); 5th arg: For each keypoint, the circle around keypoint with keypoint size and orientation will be drawn.
   for (size_t i = 0; i < temp_keypoints.size(); i++) // Run through all the red LED keypoints.
     circle(im_with_keypoints, temp_keypoints[i].pt, temp_keypoints[i].size, Scalar(255, i*40, i*20), temp_keypoints[i].size+(hue_radius/100)); // Draw the right keypoints (the red LEDs). 1st arg: in frame; 2nd arg: the centrum of the circle; 3rd arg: the circle radius; 4th arg: the color of the circle; 5th arg: the width of the circle border.
-
+  for (size_t i = 0; i < temp_keypoints.size(); i++) {
+    putText(im_with_keypoints, to_string(i), temp_keypoints[i].pt,
+    FONT_HERSHEY_COMPLEX_SMALL, 2, cvScalar(0,0,255), 1, CV_AA);
+  }
   show_frame(window_names[1], window_show[1], im_with_keypoints); // Show the detected keypoints and the RED leds
 
   return temp_keypoints;
@@ -532,7 +580,7 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
       mean_of_frame = (mean(frame_temp)[0]/(pow(in_keypoints[i].size,2)*M_PI))*mean_multiply_factor; // Calculate the mean of the frame using an openCV function. Calculation is relative since it takes the size into account.
 
       if (debug)
-        cout << "Keypoint " << i << " has a mean red value of " << mean_of_frame << endl;
+        cout << "Keypoint " << i << " has a mean value of " << mean_of_frame << endl;
 
       int color_threashold; // Used to hold the right color_threashold. Used to (almost) avoid the same code
       if (!in_secondary_detection_run)
@@ -550,6 +598,139 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
   return out_keypoints;
 }
 
+bool drone_tracking::find_position(vector<KeyPoint> diode_keypoints, xyz_position& drone_position)
+/*****************************************************************************
+*   Input    :
+*   Output   :
+*   Function :
+******************************************************************************/
+{
+  if (diode_keypoints.size() < 3) {
+    return false;
+  } else if (diode_keypoints.size() >= 3) {
+    // Find the smallest relation
+    int min_dist1_diode1, min_dist1_diode2;
+    double min_dist1 = pow(10,10); // Just defined as a very high number for the first test
+    double temp_dist;
+    for (size_t i = 0; i < diode_keypoints.size() - 1; i++) {
+      for (size_t j = i + 1; j < diode_keypoints.size(); j++) {
+        temp_dist = calc_dist(diode_keypoints[i], diode_keypoints[j]);
+        if (temp_dist < min_dist1) {
+          min_dist1 = temp_dist;
+          min_dist1_diode1 = i;
+          min_dist1_diode2 = j;
+        }
+      }
+    }
+    cout << "Smallest relation test" << endl;
+    cout << "Min diode 1: " << min_dist1_diode1 << endl;
+    cout << "Min diode 2: " << min_dist1_diode2 << endl;
+    cout << "Min dist is: " << min_dist1 << endl;
+    // Determine diode 3 or 4
+    int diode1_3or4 = diode_keypoints.size()+1; // The diode from the smallest relation and related to diode 3 or 4. Set to that value so we can check if it is found
+    int diode2_3or4 = diode_keypoints.size()+1; // Actual diode 3 or 4. Set to that value so we can check if it is found
+    for (size_t i = 0; i < diode_keypoints.size(); i++) {
+      if (i != min_dist1_diode1 and i != min_dist1_diode2) {
+        temp_dist = calc_dist(diode_keypoints[min_dist1_diode1], diode_keypoints[i]);
+        if (temp_dist/min_dist1 > DIODE_1_4-DIODE_TOLERANCE and temp_dist/min_dist1 < DIODE_1_4+DIODE_TOLERANCE) {
+          diode1_3or4 = min_dist1_diode1;
+          diode2_3or4 = i;
+          cout << "Relation is: " << temp_dist/min_dist1 << endl;
+        }
+      }
+    }
+    if (diode1_3or4 < diode_keypoints.size() and diode1_3or4 < diode_keypoints.size()) {
+      cout << "Bottom relation" << endl;
+      cout << "Ref diode: " << diode1_3or4 << endl;
+      cout << "Diode 3 or 4: " << diode2_3or4 << endl;
+    } else {
+      cout << " --- no bottom relation found ---" << endl;
+    }
+    if (diode2_3or4 > diode_keypoints.size() ) { // If the diode is not found it looks through the other diodes relations
+      for (size_t i = 0; i < diode_keypoints.size(); i++) {
+        if (i != min_dist1_diode1 and i != min_dist1_diode2) {
+          temp_dist = calc_dist(diode_keypoints[min_dist1_diode2], diode_keypoints[i]);
+          if (temp_dist/min_dist1 > DIODE_2_3-DIODE_TOLERANCE and temp_dist/min_dist1 < DIODE_2_3+DIODE_TOLERANCE) {
+            diode1_3or4 = min_dist1_diode2;
+            diode2_3or4 = i;
+          }
+        }
+      }
+    }
+    if (diode2_3or4 > diode_keypoints.size()) { // Diode 1 or 2 has not been found so the relation is another
+      for (size_t i = 0; i < diode_keypoints.size(); i++) {
+        if (i != min_dist1_diode1 and i != min_dist1_diode2) {
+          temp_dist = calc_dist(diode_keypoints[min_dist1_diode1], diode_keypoints[i]);
+          if (temp_dist/min_dist1 > DIODE_3_4_SECONDARY-DIODE_TOLERANCE and temp_dist/min_dist1 < DIODE_3_4_SECONDARY+DIODE_TOLERANCE) {
+            diode1_3or4 = min_dist1_diode1;
+            diode2_3or4 = i;
+          }
+        }
+      }
+      if (diode2_3or4 > diode_keypoints.size()) { // Diode 1 or 2 has not been found so the relation is another
+        for (size_t i = 0; i < diode_keypoints.size(); i++) {
+          if (i != min_dist1_diode1 and i != min_dist1_diode2) {
+            temp_dist = calc_dist(diode_keypoints[min_dist1_diode2], diode_keypoints[i]);
+            if (temp_dist/min_dist1 > DIODE_3_4_SECONDARY-DIODE_TOLERANCE and temp_dist/min_dist1 < DIODE_3_4_SECONDARY+DIODE_TOLERANCE) {
+              diode1_3or4 = min_dist1_diode2;
+              diode2_3or4 = i;
+            }
+          }
+        }
+      }
+      if (diode2_3or4 > diode_keypoints.size()) { // no relation was found during secondary analysis, retuning false
+        return false;
+      } else {
+        //Calculate position
+        double delta_x = diode_keypoints[diode1_3or4].pt.x - diode_keypoints[diode2_3or4].pt.x;
+        double delta_y = diode_keypoints[diode1_3or4].pt.y - diode_keypoints[diode2_3or4].pt.y;
+        drone_position.orientation = (atan2(delta_y, delta_x) * 180 / M_PI);// - 98.945;
+        cout << "[2] Drone has orientation: " << drone_position.orientation << " (calculated from point " << diode1_3or4 << " and " << diode2_3or4 << ")" << endl;
+        return true;
+      }
+    } else {
+      // Find rotation
+      double delta_x = diode_keypoints[min_dist1_diode1].pt.x - diode_keypoints[min_dist1_diode2].pt.x;
+      double delta_y = diode_keypoints[min_dist1_diode1].pt.y - diode_keypoints[min_dist1_diode2].pt.y;
+      drone_position.orientation = atan2(delta_y, delta_x) * 180 / M_PI;
+      cout << "[1] Drone has orientation: " << drone_position.orientation << " (calculated from point " << min_dist1_diode1 << " and " << min_dist1_diode2 << ")" << endl;
+
+      /*
+      xy_position center1;
+      xy_position center2;
+      xy_position center3;
+      xy_position center4;
+      */
+
+
+      // Diode 1 or 2 and 3 or 4 has been found
+      //Calculate position
+      return true;
+    }
+    // CODE
+  } /*else if (diode_keypoints >= 4) {
+
+  }*/
+
+  // Tests - start
+  drone_position.x = 0;
+  cout << "Y: " << drone_position.y << endl << endl;
+  if (diode_keypoints.size()) {
+    cout << "Y: " << diode_keypoints[0].pt.x << endl << endl;
+  }
+  // Tests - end
+  return true;
+}
+
+double drone_tracking::calc_dist(KeyPoint point1, KeyPoint point2)
+/*****************************************************************************
+*   Input    :
+*   Output   :
+*   Function :
+******************************************************************************/
+{
+  return sqrt(pow((point2.pt.x-point1.pt.x),2)+pow((point2.pt.y-point1.pt.y),2));
+}
 
 // Drone shape tracking methods
 
@@ -743,15 +924,18 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
     shape_masked.copyTo(*frame_out); // Copy only the drone back to frame_out
 
 
-
-    // Print information
-    cout << "lowest_match_result = " << lowest_match_result << " x: "
-      << position.x << " y: " << position.y  << " O: " << position.orientation
-      << "\t frame: " << frame_number  << endl;
+    if (debug) {
+      // Print information
+      cout << "lowest_match_result = " << lowest_match_result << " x: "
+        << position.x << " y: " << position.y  << " O: " << position.orientation
+        << "\t frame: " << frame_number  << endl;
+    }
   }
   else    // No match is found
-    cout << "lowest_match_result = INT_MAX -> no match \t frame: "
-    << frame_number << endl;  // Print no match
+    if (debug) {
+      cout << "lowest_match_result = INT_MAX -> no match \t frame: "
+      << frame_number << endl;  // Print no match
+    }
 
   if(show_result)
   {
