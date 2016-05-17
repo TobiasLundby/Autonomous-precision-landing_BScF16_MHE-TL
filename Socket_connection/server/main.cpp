@@ -24,6 +24,18 @@ int main(int argc,char* argv[])
   std::cout << package_in.field5 << std::endl;
   std::cout << package_in.field6 << std::endl;
   std::cout << package_in.field7 << std::endl;
+  std::cout << package_in.field8 << std::endl;
+  std::cout << package_in.field9 << std::endl;
+  std::cout << package_in.field10 << std::endl;
+  std::cout << package_in.field11 << std::endl;
+  std::cout << package_in.field12 << std::endl;
+  std::cout << package_in.field13 << std::endl;
+  std::cout << package_in.field14 << std::endl;
+  std::cout << package_in.field15 << std::endl;
+  std::cout << package_in.field16 << std::endl;
+  std::cout << package_in.field17 << std::endl;
+  std::cout << package_in.field18 << std::endl;
+  std::cout << package_in.field19 << std::endl;
   socket.socket_send_frame(package_in);
 
 
