@@ -11,7 +11,30 @@
 
 #pragma once
 #include <pthread.h>
-#include "server.hpp"
+//#include "server.hpp"
+
+typedef struct socket_package{
+  int field0;
+  int field1;
+  int field2;
+  int field3;
+  int field4;
+  int field5;
+  int field6;
+  int field7; // Original packet ends here
+  int field8;
+  int field9;
+  int field10;
+  int field11;
+  int field12;
+  int field13;
+  int field14;
+  int field15;
+  int field16;
+  int field17;
+  int field18;
+  int field19;
+} socket_package;
 
 // Data types
 socket_package sock_pack_in, sock_pack_out; // Packages for socket in and out

@@ -27,7 +27,7 @@
 #define PORT "3400"
 
 /*****************************    Structs    *******************************/
-typedef struct socket_package{
+/*typedef struct socket_package{
   int field0;
   int field1;
   int field2;
@@ -48,7 +48,7 @@ typedef struct socket_package{
   int field17;
   int field18;
   int field19;
-} socket_package;
+} socket_package;*/
 
 /*****************************   Class   *******************************/
 class socket_server
