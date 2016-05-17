@@ -603,7 +603,7 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
   return out_keypoints;
 }
 
-bool drone_tracking::find_position(vector<KeyPoint> diode_keypoints, xyz_position& drone_position)
+  bool drone_tracking::find_position(vector<KeyPoint> diode_keypoints, xyz_position& drone_position)
 /*****************************************************************************
 *   Input    :
 *   Output   :
