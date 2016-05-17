@@ -69,6 +69,12 @@ typedef struct xy_position{   // Struct for xy-position of drone
    double orientation;        // Might not be used. Not stable yet.
  } xy_position;
 
+ typedef struct xyz_position{   // Struct for xy-position of drone
+    double x;                   //Horizontal plane is x and y
+    double y;                   //  ---""---
+    double z;                   // Distance above ground station
+    double orientation;        // Might not be used. Not stable yet.
+  } xyz_position;
 
 
 /*****************************   Class   *******************************/
@@ -347,7 +353,7 @@ void drone_tracking::frame_analysis()
   if (debug)
     cout << endl << "Frame: " << global_frame_counter << endl;
 
-  //leds = diode_detection();
+  leds = diode_detection();
 
 
   // Hejgaard analysis
