@@ -94,7 +94,8 @@ using namespace std;
 #define THRESH_TYPE         THRESH_BINARY_INV // If src(x,y)>TRESH_TRESH: src(x,y)=0 else THRESH_MAXVAL // Chosen because it is used in Stig Turner's code.
 
 
-#define SHAPE_FOUND_THRESH  1             // Value below is a match
+#define SHAPE_FOUND_THRESH  13             // Value below is a match
+#define MINIMUM_DRONE_SIZE 1000             // For discarding too small contours            // Value below is a match
 
 typedef struct xy_position{   // Struct for xy-position of drone
    double x;
@@ -149,8 +150,8 @@ private: // Variables
 
  // General variables
   bool enable_wait = true;
-  int wait_time_ms = 500;
-  bool debug = false;
+  int wait_time_ms = 50;
+  bool debug = true;
   int global_frame_counter = 0;
   int start_skip_frames = 0;
 
@@ -207,6 +208,8 @@ private: // Variables
   int dilation_size = DILATION_SIZE;
   int dilate_iterations = DILATE_ITERATIONS;
   int thresh_tresh = THRESH_THRESH;
+  int shape_found_thresh = SHAPE_FOUND_THRESH;
+  int minimum_drone_size = MINIMUM_DRONE_SIZE;
 
 
   bool wait_enable = false;
@@ -281,16 +284,16 @@ void drone_tracking::create_windows()
 
   // Diode detection
   window_names.push_back("Recognized red LEDs"); window_show.push_back(true); //Window 1 *
-  window_names.push_back("Color mask"); window_show.push_back(true); //Window 2 *
-  window_names.push_back("Color seperation frame"); window_show.push_back(true); //Window 3 *
+  window_names.push_back("Color mask"); window_show.push_back(false); //Window 2 *
+  window_names.push_back("Color seperation frame"); window_show.push_back(false); //Window 3 *
   //window_names.push_back("Other2"); window_show.push_back(true);//Window 4
   //window_names.push_back("Other3"); window_show.push_back(true);//Window 5
 
   // Shape detection
   window_names.push_back("Drone shape"); window_show.push_back(false); //Window 4 *
   window_names.push_back("Frame contours"); window_show.push_back(false); //Window 5
-  window_names.push_back("Tracking"); window_show.push_back(false); //Window 6 *
-  window_names.push_back("Drone masked out, inside"); window_show.push_back(true); //Window 7 *
+  window_names.push_back("Tracking"); window_show.push_back(true); //Window 6 *
+  window_names.push_back("Drone masked out, inside"); window_show.push_back(false); //Window 7 *
   window_names.push_back("Shape frame"); window_show.push_back(false); //Window 8
   window_names.push_back("Contours on shape frame"); window_show.push_back(false); //Window 9
   window_names.push_back("Contour0"); window_show.push_back(false); //Window 10
@@ -299,6 +302,7 @@ void drone_tracking::create_windows()
   window_names.push_back("Erode"); window_show.push_back(false); //Window 13
   window_names.push_back("Dilate"); window_show.push_back(false); //Window 14
   window_names.push_back("Settings"); window_show.push_back(true); //Window 15
+  window_names.push_back("Contourx"); window_show.push_back(false); // 16
   //window_names.push_back("Window N"); window_show.push_back(true); //Window N
   if (window_enable)
   {
@@ -334,7 +338,7 @@ void drone_tracking::window_taskbar_create(int window_number)
 {
   if (window_number==1) // Test which window window_taskbar_create is called with
      createTrackbar("Threashold", window_names[window_number], &color_threashold_1, 1000); // 1st arg: name; 2nd arg: window; 3rd arg: pointer to the variabel (must be int); 4th arg: max value
-  if (window_number=2 and 1 != 1){ // Test which window window_taskbar_create is called with
+  if (window_number==2 and 1 != 1){ // Test which window window_taskbar_create is called with
       createTrackbar("HUE GREEN LOW", window_names[window_number], &hsv_h_low, 255);
       createTrackbar("HUE GREEN UPPER", window_names[window_number], &hsv_h_upper, 255);
   }
@@ -349,7 +353,8 @@ void drone_tracking::window_taskbar_create(int window_number)
     createTrackbar("dilation_size", window_names[window_number], &dilation_size, 20);
     createTrackbar("dilate_iterations", window_names[window_number], &dilate_iterations, 20);
     createTrackbar("thresh_thresh", window_names[window_number], &thresh_tresh, 255);
-
+    createTrackbar("match treshold",window_names[window_number], &shape_found_thresh,200);
+    createTrackbar("drone minimum size",window_names[window_number], &minimum_drone_size,1000);
   }
 
 /*
@@ -394,10 +399,10 @@ void drone_tracking::frame_analysis()
   if (debug)
     cout << endl << "Frame: " << global_frame_counter << endl;
 
-  leds = diode_detection();
-  if (find_position(leds, diode_drone)) {
+  //leds = diode_detection();
+  //if (find_position(leds, diode_drone)) {
      //A position for the drone has been found
-  }
+  //}
 
 
 
@@ -892,7 +897,8 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
   for(int i = 0; i < static_cast<int>(match_results.size()); i++)
   {
     if(match_results[i] < lowest_match_result  // Current value less than lowest
-      && match_results[i] < SHAPE_FOUND_THRESH) // & it is a match
+      && match_results[i] < (shape_found_thresh*0.01) // & it is a match
+      && contourArea(frame_contours[i])> minimum_drone_size)  // Make sure the contour is large enough to be a drone
     {
       lowest_match_result = match_results[i];   // Update lowest
       best_match_index = i;                     // Save the index
@@ -959,7 +965,7 @@ void drone_tracking::load_shape_im()
 ******************************************************************************/
 {
   bool debug = false;
-
+  cout << "Loading shape image." << endl;
   // Test if shape image exists on path
   fstream shape_file(SHAPE_IM_PATH);
   if(shape_file.good())
@@ -970,7 +976,7 @@ void drone_tracking::load_shape_im()
     shape_contours = get_contours(shape_im);      // Get contours in shape_im
 
     shape_loaded = true;      // Mark shape as loaded
-
+    cout << "Shape loaded." << endl;
     /*************** DEBUG ******************************************************/
     if(debug)
     {
@@ -1008,6 +1014,7 @@ void drone_tracking::load_shape_im()
     cout << "ERROR: Shape image does not exist. Check file path." << endl;
     exit(1);
   }
+  cout << "Returning from load_shape_im" << endl;
 }
 
 vector<vector<Point>> drone_tracking::get_contours(Mat src_in)
