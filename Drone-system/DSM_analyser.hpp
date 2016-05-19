@@ -80,6 +80,7 @@ private: // Variables
     bool debug_medium   = false;
     bool debug_expert   = false;
     bool debug_packet   = false;
+    bool debug_preamble = true;
 
     int DSM_STATE       = DSM_S_UNSAFE;
     bool safe_mode      = false; // Used when going from IDLE mode to either UNSAFE or SAFE
@@ -516,6 +517,9 @@ void DSM_RX_TX::RX_TX()
         default:
             DSM_STATE = DSM_S_UNSAFE;
             break; // Break for DSM_STATE not known
+    }
+    if (debug_preamble) {
+        printf("Preamble is %u\n", (package_in.byte_H[0]<<8)&package_in.byte_L[0]);
     }
 }
 
