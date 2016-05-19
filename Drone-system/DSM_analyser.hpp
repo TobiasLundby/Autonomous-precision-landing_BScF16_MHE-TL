@@ -76,10 +76,10 @@ private: // Methods
     void change_packet_values(package &p_in, package &p_out);
     void RX_TX();
 private: // Variables
-    bool debug_simple   = false;
-    bool debug_medium   = false;
-    bool debug_expert   = false;
-    bool debug_packet   = false;
+    bool debug_simple   = true;
+    bool debug_medium   = true;
+    bool debug_expert   = true;
+    bool debug_packet   = true;
 
     int DSM_STATE       = DSM_S_UNSAFE;
     bool safe_mode      = false; // Used when going from IDLE mode to either UNSAFE or SAFE

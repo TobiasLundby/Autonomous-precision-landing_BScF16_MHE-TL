@@ -78,14 +78,50 @@ int main(int argc,char* argv[])
     /* Various for client start */
       socket_client socket;
       socket_package sock_pack_in, sock_pack_out;
-      sock_pack_out.field0=0000;
-      sock_pack_out.field1=111;
-      sock_pack_out.field2=222;
-      sock_pack_out.field3=333;
-      sock_pack_out.field4=444;
-      sock_pack_out.field5=555;
-      sock_pack_out.field6=666;
-      sock_pack_out.field7=777;
+      sock_pack_out.field0=0;
+      sock_pack_out.field1=1;
+      sock_pack_out.field2=2;
+      sock_pack_out.field3=3;
+      sock_pack_out.field4=4;
+      sock_pack_out.field5=5;
+      sock_pack_out.field6=6;
+      sock_pack_out.field7=7;
+      sock_pack_out.field8=0;
+      sock_pack_out.field9=0;
+      sock_pack_out.field10=0;
+      sock_pack_out.field11=0;
+      sock_pack_out.field12=0;
+      sock_pack_out.field13=0;
+      sock_pack_out.field14=0;
+      sock_pack_out.field15=0;
+      sock_pack_out.field16=0;
+      sock_pack_out.field17=0;
+      sock_pack_out.field18=0;
+      sock_pack_out.field19=1;
+
+      socket.socket_send_frame(sock_pack_out);
+      socket.socket_get_frame(&sock_pack_in);
+      cout << sock_pack_in.field0;
+      cout << sock_pack_in.field1;
+      cout << sock_pack_in.field2;
+      cout << sock_pack_in.field3;
+      cout << sock_pack_in.field4;
+      cout << sock_pack_in.field5;
+      cout << sock_pack_in.field6;
+      cout << sock_pack_in.field7;
+      cout << sock_pack_in.field8;
+      cout << sock_pack_in.field9;
+      cout << sock_pack_in.field10;
+      cout << sock_pack_in.field11;
+      cout << sock_pack_in.field12;
+      cout << sock_pack_in.field13;
+      cout << sock_pack_in.field14;
+      cout << sock_pack_in.field15;
+      cout << sock_pack_in.field16;
+      cout << sock_pack_in.field17;
+      cout << sock_pack_in.field18;
+      cout << sock_pack_in.field19 << endl;
+
     /* Various for client end */
 
     /* Various for DSM_analyser start */
@@ -114,15 +150,18 @@ int main(int argc,char* argv[])
         switch (MAIN_STATE) {
             case MAIN_S_INIT:
                 serial_con.DSM_analyse(false); // RX and TX until it is safe.
-                MAIN_STATE = MAIN_S_FORCE_DOWN; // Change state
+                MAIN_STATE = MAIN_S_INSIDE_VIEW; // Change state
                 printf("Switching from MAIN_S_INIT to MAIN_S_FORCE_DOWN"); // Debug for change state
                 //serial_con.enable_all_max();
                 break;
             case MAIN_S_OUTSIDE_VIEW:
+                // Don't do anything
                 break;
             case MAIN_S_INSIDE_VIEW:
+                MAIN_STATE = MAIN_S_FORCE_DOWN;
                 break;
             case MAIN_S_FORCE_DOWN:
+
                 if (sock_pack_in.field0 > -OFFSET_MAX_RANGE and sock_pack_in.field0 < OFFSET_MAX_RANGE)
                     ch0_off_goal = sock_pack_in.field0;
                 if (sock_pack_in.field1 > -OFFSET_MAX_RANGE and sock_pack_in.field1 < OFFSET_MAX_RANGE)
@@ -170,11 +209,12 @@ int main(int argc,char* argv[])
                 serial_con.change_channel_offsets(ch0_off,ch1_off,ch2_off,ch3_off,ch4_off,ch5_off,ch6_off);
 
                 //printf("Value from socket is %i and current offset is %i\n", ch0_off_goal, ch0_off);
-                //print_in_frame(serial_con);
+                print_in_frame(serial_con);
                 //print_out_frame(serial_con);
 
                 if (serial_con.get_in_channel_value(5) < CH5POS1 - CH5THR and serial_con.get_in_channel_value(5) > CH5POS1 + CH5THR) {
-                    ch0_off_goal = -20;
+                    if(sock_pack_in.field0 == 1)
+                      ch0_off_goal = -20;
                 }
 
                 sock_pack_out.field0 = serial_con.get_out_channel_value(0);
@@ -190,8 +230,8 @@ int main(int argc,char* argv[])
         }
         serial_con.DSM_analyse(false); /* RX AND TX */
         /* HOEJGAARD PUT YOUR SOCKET RX TX HERE */
-        socket.socket_send_frame(sock_pack_out);
-        socket.socket_get_frame(&sock_pack_in);
+        //socket.socket_send_frame(sock_pack_out);
+        //socket.socket_get_frame(&sock_pack_in);
     }
 
     /* FUN STUFF - DO NOT RUN ON DRONE - ONLY FOR QGroundControl tests
