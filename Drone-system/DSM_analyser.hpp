@@ -82,7 +82,7 @@ private: // Variables
     bool debug_packet   = false;
     bool debug_preamble = true;
     int  debug_preamble_current = 0;
-    int  debug_preamble_old     = 0;
+    int  debug_preamble_old     = 100; // Has a value that is different than debug_preamble_current to force output on first preamble 
 
     int DSM_STATE       = DSM_S_UNSAFE;
     bool safe_mode      = false; // Used when going from IDLE mode to either UNSAFE or SAFE
@@ -523,7 +523,7 @@ void DSM_RX_TX::RX_TX()
     if (debug_preamble) {
         debug_preamble_current = (package_in.byte_H[0]<<8)&package_in.byte_L[0];
         if (debug_preamble_current != debug_preamble_old) {
-            printf("Preamble is %u\n", debug_preamble_current);
+            printf("Preamble is %d\n", debug_preamble_current);
             debug_preamble_old = debug_preamble_current;
         }
     }
