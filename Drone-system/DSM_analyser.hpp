@@ -76,13 +76,10 @@ private: // Methods
     void change_packet_values(package &p_in, package &p_out);
     void RX_TX();
 private: // Variables
-    bool debug_simple   = false;
+    bool debug_simple   = true;
     bool debug_medium   = false;
     bool debug_expert   = false;
     bool debug_packet   = false;
-    bool debug_preamble = true;
-    int  debug_preamble_current = 0;
-    int  debug_preamble_old     = 100; // Has a value that is different than debug_preamble_current to force output on first preamble
 
     int DSM_STATE       = DSM_S_UNSAFE;
     bool safe_mode      = false; // Used when going from IDLE mode to either UNSAFE or SAFE
@@ -103,7 +100,7 @@ private: // Variables
 
     int sync_value;
     int sync_value_expected         = 0;
-    int sync_value_expected_next    = sync_value_expected + 45; // First time we add 40 instead of 45 which we use later, this is to get a larger tolerance in the first sync runs
+    int sync_value_expected_next    = sync_value_expected + 45;
     int safe_zone_syncs             = 0;
 
     long long time_byte         = 0;
@@ -390,8 +387,8 @@ void DSM_RX_TX::RX_TX()
                                 BYTE_TYPE = HIGH;
                                 sync_value = (256*old_byte_in)+byte_in;
                                 //printf("******* Preamble ********* Sync_val: %i\n",sync_value);
-                                // change "sync_value" with "((sync_value > (sync_value_expected-SYNC_TOLERANCE)) and (sync_value < (sync_value_expected+SYNC_TOLERANCE)))"
-                                if(sync_value
+
+                                if(sync_value == sync_value_expected
                                     || (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
                                     && (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))))
                                 {
@@ -468,7 +465,7 @@ void DSM_RX_TX::RX_TX()
                 serialPutchar(ser_handle,byte_in); //TX byte
 
                 sync_value = (256*old_byte_in)+byte_in;
-                if(sync_value ||
+                if(sync_value == sync_value_expected ||
                     (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value) &&
                        (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))) &&
                     ((time_byte - time_last_byte) > frame_timeout))
@@ -519,13 +516,6 @@ void DSM_RX_TX::RX_TX()
         default:
             DSM_STATE = DSM_S_UNSAFE;
             break; // Break for DSM_STATE not known
-    }
-    if (debug_preamble) {
-        debug_preamble_current = (package_in.byte_H[0]<<8)&package_in.byte_L[0];
-        if (debug_preamble_current != debug_preamble_old) {
-            printf("Preamble is %d\n", debug_preamble_current);
-            debug_preamble_old = debug_preamble_current;
-        }
     }
 }
 
