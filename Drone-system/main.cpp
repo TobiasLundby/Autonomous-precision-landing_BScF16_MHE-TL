@@ -41,8 +41,21 @@ using namespace std;
 /*****************************    Functions    *******************************/
 void print_in_frame(DSM_RX_TX &con)
 {
+    /*
     printf(
         "\nRX frame\nChannel  Value\n0\t%i\n1\t%i\n2\t%i\n3\t%i\n4\t%i\n5\t%i\n6\t%i\n7\t%i\n",
+        con.get_in_channel_value(0),
+        con.get_in_channel_value(1),
+        con.get_in_channel_value(2),
+        con.get_in_channel_value(3),
+        con.get_in_channel_value(4),
+        con.get_in_channel_value(5),
+        con.get_in_channel_value(6),
+        con.get_in_channel_value(7)
+    );
+    */
+    printf(
+        "RX frame: 0:%i\t1:%i\t2:%i\t3:%i\t4:%i\t5:%i\t6:%i\t7:%i\n",
         con.get_in_channel_value(0),
         con.get_in_channel_value(1),
         con.get_in_channel_value(2),
