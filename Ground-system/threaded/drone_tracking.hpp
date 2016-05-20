@@ -402,9 +402,11 @@ void drone_tracking::frame_analysis()
   leds = diode_detection();
   double scale_factor;
   double temp_scale_factor = 0;
-  for (size_t i = 0; i < leds.size() - 1; i++) {
-    for (size_t j = i + 1; j < leds.size(); j++) {
-      temp_scale_factor += calc_dist(leds[i], leds[j]);
+  if (leds.size() > 0) {
+    for (size_t i = 0; i < leds.size() - 1; i++) {
+      for (size_t j = i + 1; j < leds.size(); j++) {
+        temp_scale_factor += calc_dist(leds[i], leds[j]);
+      }
     }
   }
   temp_scale_factor /= leds.size();
@@ -419,7 +421,7 @@ void drone_tracking::frame_analysis()
   rectangle( frame_bgr, Point( x_mid-((x_base*scale_factor*rect_p_gain)/2), y_mid-((y_base*scale_factor*rect_p_gain)/2) ), Point( x_mid+((x_base*scale_factor*rect_p_gain)/2), y_mid+((y_base*scale_factor*rect_p_gain)/2)), Scalar( 0, 0, 255 ), +1, 4 );
   show_frame(window_names[0], window_show[0], frame_bgr); // Show original frame
 
-  bool force_down = false;
+   bool force_down = false;
   int diodes_inside = 0;
   for (size_t i = 0; i < leds.size(); i++) {
     if ((leds[i].pt.x > x_mid-((x_base*scale_factor*rect_p_gain)/2) and leds[i].pt.x < x_mid+((x_base*scale_factor*rect_p_gain)/2)) and
@@ -431,14 +433,14 @@ void drone_tracking::frame_analysis()
   if (diodes_inside == leds.size())
     force_down = true;
 
-  /*
+
   if (find_position(leds, diode_drone)) {
-     //if (diode_drone.orientation < diode_drone.orientation - orientation_max_change and diode_drone.orientation > diode_drone.orientation + orientation_max_change) {
-    //   diode_drone.orientation = diode_drone.orientation_old;
-     //}
+     if (diode_drone.orientation < diode_drone.orientation - orientation_max_change and diode_drone.orientation > diode_drone.orientation + orientation_max_change) {
+       diode_drone.orientation = diode_drone.orientation_old;
+     }
   }
-  */
-  //cout << "Drone orientation is "<< diode_drone.orientation << endl;
+
+  cout << "Drone orientation is "<< diode_drone.orientation << endl;
 
 
 
