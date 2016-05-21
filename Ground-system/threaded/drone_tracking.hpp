@@ -77,8 +77,9 @@ using namespace std;
 
 // Drone shape tracking
   // Load shape
-#define SHAPE_IM_PATH       "src/shape.jpg" // Path to template image
-#define SHAPE_CONTOUR_INDEX 0               // Index for shape contour in shape_contours
+#define SHAPE_IM_PATH       "src/shape_dummy.jpg" // Path to dummy shape template
+// #define SHAPE_IM_PATH       "src/shape_other_no_bg.png"   // Path to plywood shape template
+#define SHAPE_CONTOUR_INDEX 0               // Index for shape contour in shape_contours. 0 for dummy. 1 for plywood.
 
   // Erosion and dilation
 #define EROSION_TYPE        MORPH_ELLIPSE // From example in link in erode/dilate function: A filled ellipse
@@ -95,7 +96,7 @@ using namespace std;
 
 
 #define SHAPE_FOUND_THRESH  13             // Value below is a match
-#define MINIMUM_DRONE_SIZE 1000             // For discarding too small contours            // Value below is a match
+#define MINIMUM_DRONE_SIZE  500             // For discarding too small contours            // Value below is a match
 
 typedef struct xy_position{   // Struct for xy-position of drone
    double x;
@@ -155,6 +156,7 @@ private: // Variables
   bool enable_wait = false;
   int wait_time_ms = 50;
   bool debug = false;
+  bool debug_frame_num = true;
   int global_frame_counter = 0;
   int start_skip_frames = 0;
 
@@ -287,25 +289,25 @@ void drone_tracking::create_windows()
   window_names.push_back("Input stream"); window_show.push_back(true); //Window 0 *
 
   // Diode detection
-  window_names.push_back("Recognized red LEDs"); window_show.push_back(true); //Window 1 *
-  window_names.push_back("Color mask"); window_show.push_back(true); //Window 2 *
-  window_names.push_back("Color seperation frame"); window_show.push_back(true); //Window 3 *
+  window_names.push_back("Recognized red LEDs"); window_show.push_back(false); //Window 1 *
+  window_names.push_back("Color mask"); window_show.push_back(false); //Window 2 *
+  window_names.push_back("Color seperation frame"); window_show.push_back(false); //Window 3 *
   //window_names.push_back("Other2"); window_show.push_back(true);//Window 4
   //window_names.push_back("Other3"); window_show.push_back(true);//Window 5
 
   // Shape detection
   window_names.push_back("Drone shape"); window_show.push_back(false); //Window 4 *
   window_names.push_back("Frame contours"); window_show.push_back(false); //Window 5
-  window_names.push_back("Tracking"); window_show.push_back(false); //Window 6 *
+  window_names.push_back("Tracking"); window_show.push_back(true); //Window 6 *
   window_names.push_back("Drone masked out, inside"); window_show.push_back(false); //Window 7 *
   window_names.push_back("Shape frame"); window_show.push_back(false); //Window 8
   window_names.push_back("Contours on shape frame"); window_show.push_back(false); //Window 9
   window_names.push_back("Contour0"); window_show.push_back(false); //Window 10
   window_names.push_back("Contour1"); window_show.push_back(false); //Window 11
-  window_names.push_back("Thresholded frame"); window_show.push_back(false); //Window 12
+  window_names.push_back("Thresholded frame"); window_show.push_back(true); //Window 12
   window_names.push_back("Erode"); window_show.push_back(false); //Window 13
   window_names.push_back("Dilate"); window_show.push_back(false); //Window 14
-  window_names.push_back("Settings"); window_show.push_back(false); //Window 15
+  window_names.push_back("Settings"); window_show.push_back(true); //Window 15
   window_names.push_back("Contourx"); window_show.push_back(false); // 16
   //window_names.push_back("Window N"); window_show.push_back(true); //Window N
   if (window_enable)
@@ -396,7 +398,7 @@ void drone_tracking::frame_analysis()
     waitKey(wait_time_ms); // Wait if enabled, typically used for manual debug
   // ALL THE ANALYSIS METHODS SHOULD BE CALLED HERE - THIS IS THE MASTER
   // SHOWING THE INPUT FRAME BELOW
-  if (debug)
+  if (debug_frame_num)
     cout << endl << "Frame: " << global_frame_counter << endl;
 
   leds = diode_detection();
@@ -421,7 +423,7 @@ void drone_tracking::frame_analysis()
   rectangle( frame_bgr, Point( x_mid-((x_base*scale_factor*rect_p_gain)/2), y_mid-((y_base*scale_factor*rect_p_gain)/2) ), Point( x_mid+((x_base*scale_factor*rect_p_gain)/2), y_mid+((y_base*scale_factor*rect_p_gain)/2)), Scalar( 0, 0, 255 ), +1, 4 );
   show_frame(window_names[0], window_show[0], frame_bgr); // Show original frame
 
-   bool force_down = false;
+  bool force_down = false;
   int diodes_inside = 0;
   for (size_t i = 0; i < leds.size(); i++) {
     if ((leds[i].pt.x > x_mid-((x_base*scale_factor*rect_p_gain)/2) and leds[i].pt.x < x_mid+((x_base*scale_factor*rect_p_gain)/2)) and
@@ -440,7 +442,8 @@ void drone_tracking::frame_analysis()
      }
   }
 
-  cout << "Drone orientation is "<< diode_drone.orientation << endl;
+  if(false)
+    cout << "Drone orientation is "<< diode_drone.orientation << endl;
 
 
 
@@ -1045,7 +1048,7 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
     shape_masked.copyTo(*frame_out); // Copy only the drone back to frame_out
 
 
-    if (debug) {
+    if (show_result) {
       // Print information
       cout << "lowest_match_result = " << lowest_match_result << " x: "
         << position.x << " y: " << position.y  << " O: " << position.orientation
@@ -1053,7 +1056,7 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
     }
   }
   else    // No match is found
-    if (debug) {
+    if (show_result) {
       cout << "lowest_match_result = INT_MAX -> no match \t frame: "
       << frame_number << endl;  // Print no match
     }
@@ -1096,15 +1099,16 @@ void drone_tracking::load_shape_im()
     if(debug)
     {
       Mat shape_im_color = imread(SHAPE_IM_PATH); // Read frame in color
-      Mat shape_contour0, shape_contour1;         // Frame for contour[0] and [1]
+      Mat shape_contour0, shape_contour1, shape_contourx;         // Frame for contour[0] and [1]
       shape_im_color.copyTo(shape_contour0);      // Copy color frame to the new
       shape_im_color.copyTo(shape_contour1);      // frames
+      shape_im_color.copyTo(shape_contourx);      // frames
 
       show_frame(window_names[8], window_show[8], shape_im);        // Show gray scale shape frame
 
       for(int i=0;i<shape_contours.size();i++)    // For all contours in frame
       {
-        drawContours(shape_im_color,shape_contours,i,color_green,1,8,
+        drawContours(shape_im_color,shape_contours,i,color_green,4,8,
           shape_hierarchy,0,Point(0,0));  // Draw it on color frame. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
       }
 
@@ -1116,11 +1120,14 @@ void drone_tracking::load_shape_im()
         shape_hierarchy,0,Point(0,0));  // Draw contour0 on contour[0]. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
       drawContours(shape_contour1,shape_contours,1,color_green,4,8,
         shape_hierarchy,0,Point(0,0));  // Draw contour1 on contour[1]. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
+      drawContours(shape_contourx,shape_contours,-1,color_green,4,8,
+        shape_hierarchy,0,Point(0,0));  // Draw contour1 on contour[1]. Arguments - 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
+
       //namedWindow("Contour0", WINDOW_FREERATIO);
       //namedWindow("Contour1", WINDOW_FREERATIO);
       show_frame(window_names[10], window_show[10], shape_contour0); // Show frames with contour[0] and 1
       show_frame(window_names[11], window_show[11], shape_contour1);
-
+      show_frame(window_names[16],window_show[16],shape_contourx);
     }
     /*********** END DEBUG ******************************************************/
   }
