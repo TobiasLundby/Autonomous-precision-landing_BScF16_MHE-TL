@@ -91,7 +91,7 @@ using namespace std;
 #define DILATE_ITERATIONS   2
 
   // Thresholding image
-#define THRESH_THRESH       60
+#define THRESH_THRESH       12
 #define THRESH_MAXVAL       255
 #define THRESH_TYPE         THRESH_BINARY_INV // If src(x,y)>TRESH_TRESH: src(x,y)=0 else THRESH_MAXVAL // Chosen because it is used in Stig Turner's code.
 
@@ -199,7 +199,7 @@ private: // Variables
   bool second_detection_run = false;
 
   int mean_multiply_factor = 1000000; //Effects the one below linear
-  int color_threashold_1 = 150;
+  int color_threashold_1 = 60;
   int color_threashold_2 = 40;
   int hue_radius = 20; // [%]
 
@@ -368,7 +368,7 @@ void drone_tracking::window_taskbar_create(int window_number)
 {
   if (window_number==1) // Test which window window_taskbar_create is called with
      createTrackbar("Threashold", window_names[window_number], &color_threashold_1, 1000); // 1st arg: name; 2nd arg: window; 3rd arg: pointer to the variabel (must be int); 4th arg: max value
-  if (window_number==2 and 1 != 1){ // Test which window window_taskbar_create is called with
+  if (window_number==2){ // Test which window window_taskbar_create is called with
       createTrackbar("HUE GREEN LOW", window_names[window_number], &hsv_h_low, 255);
       createTrackbar("HUE GREEN UPPER", window_names[window_number], &hsv_h_upper, 255);
   }
@@ -674,7 +674,7 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
       in_mask_red.copyTo(frame_temp, mask_circles); // Copy in_mask_red to frame_temp but only the area marked in the mask_circles
       mean_of_frame = (mean(frame_temp)[0]/(pow(in_keypoints[i].size,2)*M_PI))*mean_multiply_factor; // Calculate the mean of the frame using an openCV function. Calculation is relative since it takes the size into account.
 
-      if (debug)
+      if (debug and false)
         cout << "Keypoint " << i << " has a mean value of " << mean_of_frame << endl;
 
       int color_threashold; // Used to hold the right color_threashold. Used to (almost) avoid the same code
