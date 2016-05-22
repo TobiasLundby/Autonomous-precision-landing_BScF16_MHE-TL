@@ -100,7 +100,7 @@ using namespace std;
 #define MINIMUM_DRONE_SIZE  500             // For discarding too small contours            // Value below is a match
 
  // For test
- #define SAVE_FRAME_NUM     400           // Frame that is saved in frame_analysis
+ #define SAVE_FRAME_NUM     360           // Frame that is saved in frame_analysis
 
 typedef struct xy_position{   // Struct for xy-position of drone
    double x;
@@ -273,6 +273,8 @@ drone_tracking::drone_tracking(string filenameIn)
       cout << "Unable to open data file" << endl;
       exit(1);
     }
+    capture.set(CV_CAP_PROP_FRAME_WIDTH,1280);
+    capture.set(CV_CAP_PROP_FRAME_HEIGHT,720);
     cout << "Capture is opened" << endl;
     create_windows();
     data_diode_tracking.open (diode_tracking_filename);
@@ -286,6 +288,7 @@ drone_tracking::drone_tracking(string filenameIn)
         if (start_skip_frames < global_frame_counter)
           frame_analysis(); // Master method for analysis
       global_frame_counter++;
+      cout << frame_bgr.rows << " " << frame_bgr.cols << endl;
       if(waitKey(10) >= 0)
         break;
     }
