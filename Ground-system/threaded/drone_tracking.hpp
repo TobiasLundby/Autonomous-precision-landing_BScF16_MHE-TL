@@ -98,7 +98,7 @@ using namespace std;
 
 #define SHAPE_FOUND_THRESH  45             // Value below is a match
 #define MINIMUM_DRONE_SIZE  500             // For discarding too small contours            // Value below is a match
-
+#define MAXIMUM_DRONE_SIZE  10000
  // For test
  #define SAVE_FRAME_NUM     360           // Frame that is saved in frame_analysis
 
@@ -225,6 +225,7 @@ private: // Variables
   int thresh_tresh = THRESH_THRESH;
   int shape_found_thresh = SHAPE_FOUND_THRESH;
   int minimum_drone_size = MINIMUM_DRONE_SIZE;
+  int maximum_drone_size = MAXIMUM_DRONE_SIZE;
 
 
   bool wait_enable = false;
@@ -385,6 +386,7 @@ void drone_tracking::window_taskbar_create(int window_number)
     createTrackbar("thresh_thresh", window_names[window_number], &thresh_tresh, 255);
     createTrackbar("match treshold",window_names[window_number], &shape_found_thresh,200);
     createTrackbar("drone minimum size",window_names[window_number], &minimum_drone_size,2000);
+    createTrackbar("drone maximum size",window_names[window_number], &maximum_drone_size,10000);
   }
 
 /*
@@ -1052,7 +1054,8 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
   {
     if(match_results[i] < lowest_match_result  // Current value less than lowest
       && match_results[i] < (shape_found_thresh*0.01) // & it is a match
-      && contourArea(frame_contours[i])> minimum_drone_size)  // Make sure the contour is large enough to be a drone
+      && contourArea(frame_contours[i])> minimum_drone_size  // Make sure the contour is large enough to be a drone
+      && contourArea(frame_contours[i]) < maximum_drone_size)
     {
       lowest_match_result = match_results[i];   // Update lowest
       best_match_index = i;                     // Save the index
