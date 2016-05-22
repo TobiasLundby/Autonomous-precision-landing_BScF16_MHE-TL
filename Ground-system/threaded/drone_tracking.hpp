@@ -78,9 +78,9 @@ using namespace std;
 // Drone shape tracking
   // Load shape
 #define DATA_FILE_PATH      "shape_test_data.csv"
-#define SHAPE_IM_PATH       "src/shape_dummy.jpg" // Path to dummy shape template
-// #define SHAPE_IM_PATH       "src/shape_other_no_bg.png"   // Path to plywood shape template
-#define SHAPE_CONTOUR_INDEX 0               // Index for shape contour in shape_contours. 0 for dummy. 1 for plywood.
+//#define SHAPE_IM_PATH       "src/shape_dummy.jpg" // Path to dummy shape template
+#define SHAPE_IM_PATH       "src/shape_other_no_bg.png"   // Path to plywood shape template
+#define SHAPE_CONTOUR_INDEX 1               // Index for shape contour in shape_contours. 0 for dummy. 1 for plywood.
 
   // Erosion and dilation
 #define EROSION_TYPE        MORPH_ELLIPSE // From example in link in erode/dilate function: A filled ellipse
