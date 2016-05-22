@@ -77,6 +77,7 @@ using namespace std;
 
 // Drone shape tracking
   // Load shape
+#define DATA_FILE_PATH      "shape_test_data.csv"
 #define SHAPE_IM_PATH       "src/shape_dummy.jpg" // Path to dummy shape template
 // #define SHAPE_IM_PATH       "src/shape_other_no_bg.png"   // Path to plywood shape template
 #define SHAPE_CONTOUR_INDEX 0               // Index for shape contour in shape_contours. 0 for dummy. 1 for plywood.
@@ -95,8 +96,11 @@ using namespace std;
 #define THRESH_TYPE         THRESH_BINARY_INV // If src(x,y)>TRESH_TRESH: src(x,y)=0 else THRESH_MAXVAL // Chosen because it is used in Stig Turner's code.
 
 
-#define SHAPE_FOUND_THRESH  13             // Value below is a match
+#define SHAPE_FOUND_THRESH  45             // Value below is a match
 #define MINIMUM_DRONE_SIZE  500             // For discarding too small contours            // Value below is a match
+
+ // For test
+ #define SAVE_FRAME_NUM     400           // Frame that is saved in frame_analysis
 
 typedef struct xy_position{   // Struct for xy-position of drone
    double x;
@@ -225,6 +229,8 @@ private: // Variables
   Scalar color_green = Scalar(0,255,0), color_red = Scalar(0,0,255);
   Scalar color_white = Scalar(255,255,255), color_black = Scalar(0,0,0);
 
+  ofstream shape_data;
+
 };
 
 drone_tracking::drone_tracking()
@@ -256,6 +262,12 @@ drone_tracking::drone_tracking(string filenameIn)
   }
 
   if(capture.isOpened()) { // Test if capture is opened
+    shape_data.open(DATA_FILE_PATH);
+    if(!shape_data.is_open())
+    {
+      cout << "Unable to open data file" << endl;
+      exit(1);
+    }
     cout << "Capture is opened" << endl;
     create_windows();
     for(;;) { // Processing
@@ -269,6 +281,7 @@ drone_tracking::drone_tracking(string filenameIn)
       if(waitKey(10) >= 0)
         break;
     }
+    shape_data.close();
   } else { // Error capture is not opened
     cout << "No capture to open" << endl;
     frame_bgr = Mat::zeros(480, 640, CV_8UC1);
@@ -360,7 +373,7 @@ void drone_tracking::window_taskbar_create(int window_number)
     createTrackbar("dilate_iterations", window_names[window_number], &dilate_iterations, 20);
     createTrackbar("thresh_thresh", window_names[window_number], &thresh_tresh, 255);
     createTrackbar("match treshold",window_names[window_number], &shape_found_thresh,200);
-    createTrackbar("drone minimum size",window_names[window_number], &minimum_drone_size,1000);
+    createTrackbar("drone minimum size",window_names[window_number], &minimum_drone_size,2000);
   }
 
 /*
@@ -454,9 +467,10 @@ void drone_tracking::frame_analysis()
   Mat shape_frame;                    // Frame with only drone masked out
   shape_frame = Mat::zeros( frame_bgr.size(), CV_8UC3 );
 
-  get_drone_position(frame_bgr,&position_from_shape, &shape_frame); // Get the position
+  bool drone_detected = get_drone_position(frame_bgr,&position_from_shape, &shape_frame); // Get the position
   show_frame(window_names[4], window_show[4], shape_frame);
 
+  shape_data << frame_number << "," << drone_detected << "," << position_from_shape.x << "," << position_from_shape.y << endl;
 
   // Put someting in the socket packet;
   pthread_mutex_lock(&mutex_sock_pack_out);
@@ -1067,6 +1081,9 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
     show_frame(window_names[6], window_show[6], src_frame_color); // Show the result
     //namedWindow("Drone masked out, inside", WINDOW_FREERATIO);
     show_frame(window_names[7], window_show[7], *frame_out);
+    if(frame_number==SAVE_FRAME_NUM)
+      frame_save(src_frame_color, "frame_"+to_string(SAVE_FRAME_NUM));
+
   }
   match_results.clear();      // Delete results
   frame_contours.clear();     // Delete contours
@@ -1147,7 +1164,7 @@ vector<vector<Point>> drone_tracking::get_contours(Mat src_in)
 *              contours are found.
 ******************************************************************************/
 {
-  bool debug = false;
+  bool debug = true;
   Mat src;                              // Don't alter src_in -> make a new mat
   src_in.copyTo(src);                   // Copy src_in to src
   vector<vector<Point>> local_contours; // Contours found
