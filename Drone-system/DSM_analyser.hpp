@@ -86,7 +86,7 @@ private: // Variables
     bool debug_expert   = false;
     bool debug_packet   = false;
     bool debug_errors   = true;
-    bool debug_time     = true;
+    bool debug_time     = false;
     bool debug_time_expert     = false;
 
     int DSM_STATE       = DSM_S_UNSAFE;
@@ -412,7 +412,7 @@ void DSM_RX_TX::RX_TX()
                                     && (sync_value < (sync_value_expected_next + SYNC_TOLERANCE)))) and ((time_byte - time_last_byte) > frame_timeout))
                                 {
                                     if ((sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS) and sync_value != sync_value_expected) 
-                                    {                                   {
+                                    {
                                         packet_errors += sync_value - sync_value_expected;
                                         if (debug_errors)
                                             printf("There have been %i errors\n",packet_errors);
