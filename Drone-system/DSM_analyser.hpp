@@ -394,7 +394,7 @@ void DSM_RX_TX::RX_TX()
                                 sync_value = (256*old_byte_in)+byte_in;
                                 //printf("******* Preamble ********* Sync_val: %i\n",sync_value);
 
-                                if(sync_value == sync_value_expected or (sync_value >= sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)
+                                if((sync_value == sync_value_expected or (sync_value >= sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS))
                                     || (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
                                     && (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))))
                                 {
@@ -477,7 +477,7 @@ void DSM_RX_TX::RX_TX()
                 serialPutchar(ser_handle,byte_in); //TX byte
 
                 sync_value = (256*old_byte_in)+byte_in;
-                if(sync_value == sync_value_expected or (sync_value >= sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS) ||
+                if((sync_value == sync_value_expected or (sync_value >= sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)) ||
                     (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value) &&
                        (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))) &&
                     ((time_byte - time_last_byte) > frame_timeout))
