@@ -86,7 +86,8 @@ private: // Variables
     bool debug_expert   = false;
     bool debug_packet   = false;
     bool debug_errors   = true;
-    bool debug_time     = false;
+    bool debug_time     = true;
+    bool debug_time_expert     = false;
 
     int DSM_STATE       = DSM_S_UNSAFE;
     bool safe_mode      = false; // Used when going from IDLE mode to either UNSAFE or SAFE
@@ -211,7 +212,8 @@ double DSM_RX_TX::currentTimeUs()
     //return (long)current.tv_sec * 1000000L + current.tv_usec;
     struct timeval tim;
     gettimeofday(&tim, NULL);
-    printf("time returned is %f \n", (double)tim.tv_sec+(tim.tv_usec/1000000.0));
+    if (debug_time_expert)
+        printf("time returned is %f \n", (double)tim.tv_sec+(tim.tv_usec/1000000.0));
     return (double)tim.tv_sec+(tim.tv_usec/1000000.0);
 }
 
@@ -366,7 +368,7 @@ void DSM_RX_TX::RX_TX()
                 time_last_byte = time_byte;
                 time_byte = currentTimeUs();
                 if (debug_time)
-                    printf("Time between bytes are %li and timeout is %li \n", time_byte - time_last_byte, frame_timeout);
+                    printf("Time between bytes are %f and timeout is %f \n", time_byte - time_last_byte, frame_timeout);
                 byte_in = serialGetchar(ser_handle); //RX byte
                 byte_counter++;
                 success_bytes++;
@@ -485,7 +487,7 @@ void DSM_RX_TX::RX_TX()
                 time_last_byte = time_byte;
                 time_byte = currentTimeUs();
                 if (debug_time)
-                    printf("Time between bytes are %li and timeout is %li \n", time_byte - time_last_byte, frame_timeout);
+                    printf("Time between bytes are %f and timeout is %f \n", time_byte - time_last_byte, frame_timeout);
                 byte_in = serialGetchar(ser_handle); //RX byte
                 serialPutchar(ser_handle,byte_in); //TX byte
 
