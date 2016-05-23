@@ -207,7 +207,7 @@ long long DSM_RX_TX::currentTimeUs()
     struct timespec current;
     clock_gettime(CLOCK_REALTIME, &current);
     //return (long long)current.tv_sec * 1000000000L + current.tv_nsec;
-    printf("time returned is %f\n", current.tv_nsec);
+    printf("time returned is %li \n", current.tv_nsec);
     return (long long)current.tv_nsec;
 }
 
