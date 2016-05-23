@@ -72,7 +72,7 @@ public: // Methods
     int get_in_channel_value(int channel);
     int get_out_channel_value(int channel);
 private: // Methods
-    long long currentTimeUs();
+    long currentTimeUs();
     void decode_channel_value(package &p, int byte);
     void set_channel_value(package &p,int channel, int value);
     void decode_packet(package &p_in);
@@ -110,9 +110,9 @@ private: // Variables
     int sync_value_expected_next    = sync_value_expected + SYNC_INCREMENT;
     int safe_zone_syncs             = 0;
 
-    long long time_byte         = 0;
-    long long time_last_byte    = 0;
-    const long long frame_timeout     = 5000; // micro seconds 1ms=1000us
+    long time_byte         = 0;
+    long time_last_byte    = 0;
+    const long frame_timeout     = 5000; // micro seconds 1ms=1000us
 
     int UNSAFE_syncs;
     int avail_bytes     = 0; // 0 since no avaliable bytes when starting up
@@ -195,7 +195,7 @@ DSM_RX_TX::DSM_RX_TX(char* port)
         printf("RX and TX ready to start in IDLE mode (safe_mode is false)\n");
 }
 
-long long DSM_RX_TX::currentTimeUs()
+long DSM_RX_TX::currentTimeUs()
 /*****************************************************************************
 *   Input    : None
 *   Output   : Time in micro seconds
