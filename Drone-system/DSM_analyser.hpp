@@ -112,7 +112,7 @@ private: // Variables
 
     long time_byte         = 0;
     long time_last_byte    = 0;
-    const long frame_timeout     = 5000; // micro seconds 1ms=1000us
+    const long frame_timeout     = 700000; // nano seconds 1ms=100000ns
 
     int UNSAFE_syncs;
     int avail_bytes     = 0; // 0 since no avaliable bytes when starting up
