@@ -78,9 +78,9 @@ using namespace std;
 // Drone shape tracking
   // Load shape
 #define DATA_FILE_PATH      "shape_test_data.csv"
-//#define SHAPE_IM_PATH       "src/shape_dummy.jpg" // Path to dummy shape template
-#define SHAPE_IM_PATH       "src/shape_other_no_bg.png"   // Path to plywood shape template
-#define SHAPE_CONTOUR_INDEX 1               // Index for shape contour in shape_contours. 0 for dummy. 1 for plywood.
+#define SHAPE_IM_PATH       "src/shape_dummy.jpg" // Path to dummy shape template
+// #define SHAPE_IM_PATH       "src/shape_other_no_bg.png"   // Path to plywood shape template
+#define SHAPE_CONTOUR_INDEX 0               // Index for shape contour in shape_contours. 0 for dummy. 1 for plywood.
 
   // Erosion and dilation
 #define EROSION_TYPE        MORPH_ELLIPSE // From example in link in erode/dilate function: A filled ellipse
@@ -91,16 +91,16 @@ using namespace std;
 #define DILATE_ITERATIONS   2
 
   // Thresholding image
-#define THRESH_THRESH       12
+#define THRESH_THRESH       60
 #define THRESH_MAXVAL       255
 #define THRESH_TYPE         THRESH_BINARY_INV // If src(x,y)>TRESH_TRESH: src(x,y)=0 else THRESH_MAXVAL // Chosen because it is used in Stig Turner's code.
 
 
-#define SHAPE_FOUND_THRESH  45             // Value below is a match
-#define MINIMUM_DRONE_SIZE  500             // For discarding too small contours            // Value below is a match
+#define SHAPE_FOUND_THRESH  140             // Value below is a match
+#define MINIMUM_DRONE_SIZE  200             // For discarding too small contours            // Value below is a match
 #define MAXIMUM_DRONE_SIZE  10000
  // For test
- #define SAVE_FRAME_NUM     360           // Frame that is saved in frame_analysis
+ #define SAVE_FRAME_NUM     150           // Frame that is saved in frame_analysis
 
 typedef struct xy_position{   // Struct for xy-position of drone
    double x;

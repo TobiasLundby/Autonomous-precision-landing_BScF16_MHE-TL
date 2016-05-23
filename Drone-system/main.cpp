@@ -26,6 +26,7 @@ using namespace std;
 #define MAIN_S_OUTSIDE_VIEW 1
 #define MAIN_S_INSIDE_VIEW  2
 #define MAIN_S_FORCE_DOWN   3
+#define MAIN_S_TEST_DSM     4  // For test of DSM_analyzer
 
 #define OFFSET_MAX_CHANGE   10 // The max change in the offset value each 22ms / packet
 #define OFFSET_MAX_RANGE    501 // Max range for the offsets
@@ -41,7 +42,7 @@ using namespace std;
 /*****************************    Functions    *******************************/
 void print_in_frame(DSM_RX_TX &con)
 {
-    printf(
+  printf(
         "\nRX frame\nChannel  Value\n0\t%i\n1\t%i\n2\t%i\n3\t%i\n4\t%i\n5\t%i\n6\t%i\n7\t%i\n",
         con.get_in_channel_value(0),
         con.get_in_channel_value(1),
@@ -74,6 +75,7 @@ int main(int argc,char* argv[])
 {
     int MAIN_STATE = MAIN_S_INIT;
     bool error = false;
+    bool packet_type = 0;
 
     /* Various for client start */
        socket_client socket;
@@ -98,7 +100,7 @@ int main(int argc,char* argv[])
        sock_pack_out.field17=0;
        sock_pack_out.field18=0;
        sock_pack_out.field19=1;
-      
+
        socket.socket_send_frame(sock_pack_out);
        socket.socket_get_frame(&sock_pack_in);
        cout << sock_pack_in.field0;
@@ -151,8 +153,10 @@ int main(int argc,char* argv[])
         switch (MAIN_STATE) {
             case MAIN_S_INIT:
                 serial_con.DSM_analyse(false); // RX and TX until it is safe.
-                MAIN_STATE = MAIN_S_FORCE_DOWN; // Change state
-                printf("Switching from MAIN_S_INIT to MAIN_S_FORCE_DOWN"); // Debug for change state
+                MAIN_STATE = MAIN_S_TEST_DSM;
+                printf("Switching from MAIN_S_INIT to MAIN_S_TEST_DSM"); // Debug for change state
+                // MAIN_STATE = MAIN_S_FORCE_DOWN; // Change state
+                // printf("Switching from MAIN_S_INIT to MAIN_S_FORCE_DOWN"); // Debug for change state
                 //serial_con.enable_all_max();
                 break;
             case MAIN_S_OUTSIDE_VIEW:
@@ -160,7 +164,7 @@ int main(int argc,char* argv[])
             case MAIN_S_INSIDE_VIEW:
                 break;
             case MAIN_S_FORCE_DOWN:
-                
+
                  if (sock_pack_in.field0 > -OFFSET_MAX_RANGE and sock_pack_in.field0 < OFFSET_MAX_RANGE)
                      ch0_off_goal = sock_pack_in.field0;
                  if (sock_pack_in.field1 > -OFFSET_MAX_RANGE and sock_pack_in.field1 < OFFSET_MAX_RANGE)
@@ -175,7 +179,7 @@ int main(int argc,char* argv[])
                      ch5_off_goal = sock_pack_in.field5;
                  if (sock_pack_in.field6 > -OFFSET_MAX_RANGE and sock_pack_in.field6 < OFFSET_MAX_RANGE)
                      ch6_off_goal = sock_pack_in.field6;
-                
+
                  if (ch0_off > ch0_off_goal)
                      ch0_off -= OFFSET_MAX_CHANGE;
                  else if (ch0_off < ch0_off_goal)
@@ -198,7 +202,7 @@ int main(int argc,char* argv[])
                      ch4_off += OFFSET_MAX_CHANGE;
                  if (ch5_off > ch5_off_goal)
                      ch5_off -= OFFSET_MAX_CHANGE;
-	         else if (ch5_off < ch5_off_goal)
+	               else if (ch5_off < ch5_off_goal)
                      ch5_off += OFFSET_MAX_CHANGE;
                  if (ch6_off > ch6_off_goal)
                      ch6_off -= OFFSET_MAX_CHANGE;
@@ -215,7 +219,7 @@ int main(int argc,char* argv[])
                      if(sock_pack_in.field0 == 1)
                        ch0_off_goal = -20;
                 }
-                
+
                  sock_pack_out.field0 = serial_con.get_out_channel_value(0);
                  sock_pack_out.field1 = serial_con.get_out_channel_value(1);
                  sock_pack_out.field2 = serial_con.get_out_channel_value(2);
@@ -225,6 +229,20 @@ int main(int argc,char* argv[])
                  sock_pack_out.field6 = serial_con.get_out_channel_value(6);
                  sock_pack_out.field7 = 0;
 
+                break;
+            case MAIN_S_TEST_DSM:
+                if(packet_type==1)
+                {
+                  int twenty = 20;
+                  serial_con.change_channel_offsets(twenty,twenty,twenty,twenty,twenty,twenty,twenty);
+                  packet_type = 0;
+                }
+                else
+                {
+                  packet_type = 1;
+                  int twenty = 20;
+                  serial_con.change_channel_offsets(twenty,twenty,twenty,twenty,twenty,twenty,twenty);
+                }
                 break;
         }
         serial_con.DSM_analyse(false); /* RX AND TX */
