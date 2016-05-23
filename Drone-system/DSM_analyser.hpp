@@ -15,7 +15,7 @@
 #include <errno.h>
 #include <stdbool.h>
 
-#include <time.h>       /* time */
+//#include <time.h>       /* time */
 #include <sys/time.h>   /* time */
 
 #include <wiringSerial.h>
@@ -86,7 +86,7 @@ private: // Variables
     bool debug_expert   = false;
     bool debug_packet   = false;
     bool debug_errors   = true;
-    bool debug_time     = true;
+    bool debug_time     = false;
 
     int DSM_STATE       = DSM_S_UNSAFE;
     bool safe_mode      = false; // Used when going from IDLE mode to either UNSAFE or SAFE
@@ -110,9 +110,9 @@ private: // Variables
     int sync_value_expected_next    = sync_value_expected + SYNC_INCREMENT;
     int safe_zone_syncs             = 0;
 
-    long time_byte         = 0;
-    long time_last_byte    = 0;
-    const long frame_timeout     = 700000; // nano seconds 1ms=100000ns
+    double time_byte         = 0;
+    double time_last_byte    = 0;
+    const double frame_timeout     = 0; // nano seconds 1ms=100000ns
 
     int UNSAFE_syncs;
     int avail_bytes     = 0; // 0 since no avaliable bytes when starting up
@@ -195,20 +195,23 @@ DSM_RX_TX::DSM_RX_TX(char* port)
         printf("RX and TX ready to start in IDLE mode (safe_mode is false)\n");
 }
 
-long DSM_RX_TX::currentTimeUs()
+double DSM_RX_TX::currentTimeUs()
 /*****************************************************************************
 *   Input    : None
 *   Output   : Time in micro seconds
 *   Function : Returns the current time in us
 ******************************************************************************/
 {
-    timeval current;
-    gettimeofday(&current, 0);
+    //timeval current;
+    //gettimeofday(&current, 0);
     //struct timespec current;
     //clock_gettime(CLOCK_REALTIME, &current);
     //return (long long)current.tv_sec * 1000000000L + current.tv_nsec;
-    printf("time returned is %li \n", (long)current.tv_sec * 1000000L + current.tv_usec);
-    return (long)current.tv_sec * 1000000L + current.tv_usec;
+    //printf("time returned is %li \n", (long)current.tv_sec * 1000000L + current.tv_usec);
+    //return (long)current.tv_sec * 1000000L + current.tv_usec;
+    struct timeval tim;
+    gettimeofday(&tim, NULL);
+    return (double)tim.tv_sec+(tim.tv_usec/1000000.0)
 }
 
 void DSM_RX_TX::decode_channel_value(package &p,int byte)
