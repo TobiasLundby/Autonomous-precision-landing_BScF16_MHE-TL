@@ -35,6 +35,9 @@ typedef struct package{
 #define BAUD_RATE           115200
 #define HIGH                1
 #define LOW                 0
+#define MAX_ERROR_BETWEEN_PACKETS 5
+#define SYNC_BASE           0
+#define SYNC_INCREMENT      45
 #define SYNC_TOLERANCE      5
 #define SAFE_ZONE_THRESHOLD 45 // Approximate number of packets ins 10 seconds (packets come with a frequency of ~45,5Hz)
 #define RESET_SYNC_THRESHOLD 700
@@ -75,11 +78,14 @@ private: // Methods
     void decode_packet(package &p_in);
     void change_packet_values(package &p_in, package &p_out);
     void RX_TX();
+public: // Variables
+    int packet_errors = 0;
 private: // Variables
     bool debug_simple   = true;
     bool debug_medium   = false;
     bool debug_expert   = false;
     bool debug_packet   = false;
+    bool debug_errors   = true;
 
     int DSM_STATE       = DSM_S_UNSAFE;
     bool safe_mode      = false; // Used when going from IDLE mode to either UNSAFE or SAFE
@@ -99,8 +105,8 @@ private: // Variables
     int success_bytes   = 0;
 
     int sync_value;
-    int sync_value_expected         = 0;
-    int sync_value_expected_next    = sync_value_expected + 45;
+    int sync_value_expected         = SYNC_BASE;
+    int sync_value_expected_next    = sync_value_expected + SYNC_INCREMENT;
     int safe_zone_syncs             = 0;
 
     long long time_byte         = 0;
@@ -388,12 +394,18 @@ void DSM_RX_TX::RX_TX()
                                 sync_value = (256*old_byte_in)+byte_in;
                                 //printf("******* Preamble ********* Sync_val: %i\n",sync_value);
 
-                                if(sync_value == sync_value_expected
+                                if(sync_value == sync_value_expected or (sync_value >= sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)
                                     || (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
                                     && (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))))
                                 {
+                                    if (sync_value >= sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)
+                                    {
+                                        packet_errors += sync_value - sync_value_expected;
+                                        if (debug_errors)
+                                            printf("There have been %i errors\n",packet_errors);
+                                    }
                                    sync_value_expected = sync_value;
-                                   sync_value_expected_next = sync_value + 45;
+                                   sync_value_expected_next = sync_value + SYNC_INCREMENT;
                                 }
                                 else
                                 {
@@ -465,13 +477,19 @@ void DSM_RX_TX::RX_TX()
                 serialPutchar(ser_handle,byte_in); //TX byte
 
                 sync_value = (256*old_byte_in)+byte_in;
-                if(sync_value == sync_value_expected ||
+                if(sync_value == sync_value_expected or (sync_value >= sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS) ||
                     (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value) &&
                        (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))) &&
                     ((time_byte - time_last_byte) > frame_timeout))
                 {
+                    if (sync_value >= sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)
+                    {
+                        packet_errors += sync_value - sync_value_expected;
+                        if (debug_errors)
+                            printf("There have been %i errors\n",packet_errors);
+                    }
                     sync_value_expected = sync_value;
-                    sync_value_expected_next = sync_value + 45;
+                    sync_value_expected_next = sync_value_expected + SYNC_INCREMENT;
                     if (debug_expert)
                         printf("Last_sync_dist: %i\n",last_sync_dist);
                     if((safe_zone_syncs > 0 && last_sync_dist == 15) || safe_zone_syncs == 0)
@@ -504,8 +522,8 @@ void DSM_RX_TX::RX_TX()
                     if (debug_medium) {
                         printf("The expected sync value has been reset\n");
                     }
-                    sync_value_expected = 0;
-                    sync_value_expected_next = sync_value + 45;
+                    sync_value_expected = SYNC_BASE;
+                    sync_value_expected_next = sync_value + SYNC_INCREMENT;
                 }
                 else if (UNSAFE_counter >= FATAL_SYNC_THRESHOLD*16)
                 {
