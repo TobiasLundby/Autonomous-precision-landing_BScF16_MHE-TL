@@ -113,7 +113,7 @@ private: // Variables
 
     double time_byte         = 0;
     double time_last_byte    = 0;
-    const double frame_timeout     = 0; // nano seconds 1ms=100000ns
+    const double frame_timeout     = ; // nano seconds 1ms=100000ns
 
     int UNSAFE_syncs;
     int avail_bytes     = 0; // 0 since no avaliable bytes when starting up
@@ -368,7 +368,7 @@ void DSM_RX_TX::RX_TX()
                 time_last_byte = time_byte;
                 time_byte = currentTimeUs();
                 if (debug_time)
-                    printf("Time between bytes are %f and timeout is %f \n", time_byte - time_last_byte, frame_timeout);
+                    printf("Time between bytes are %f (calculated from %f and %f) and timeout is %f \n", time_byte - time_last_byte, time_byte, time_last_byte, frame_timeout);
                 byte_in = serialGetchar(ser_handle); //RX byte
                 byte_counter++;
                 success_bytes++;
@@ -487,7 +487,7 @@ void DSM_RX_TX::RX_TX()
                 time_last_byte = time_byte;
                 time_byte = currentTimeUs();
                 if (debug_time)
-                    printf("Time between bytes are %f and timeout is %f \n", time_byte - time_last_byte, frame_timeout);
+                    printf("Time between bytes are %f (calculated from %f and %f) and timeout is %f \n", time_byte - time_last_byte, time_byte, time_last_byte, frame_timeout);
                 byte_in = serialGetchar(ser_handle); //RX byte
                 serialPutchar(ser_handle,byte_in); //TX byte
 
