@@ -86,7 +86,7 @@ private: // Variables
     bool debug_expert   = false;
     bool debug_packet   = false;
     bool debug_errors   = true;
-    bool debug_time     = false;
+    bool debug_time     = true;
     bool debug_time_expert     = false;
 
     int DSM_STATE       = DSM_S_UNSAFE;
