@@ -211,7 +211,7 @@ double DSM_RX_TX::currentTimeUs()
     //return (long)current.tv_sec * 1000000L + current.tv_usec;
     struct timeval tim;
     gettimeofday(&tim, NULL);
-    printf("time returned is %f \n", (double)tim.tv_sec+(tim.tv_usec/1000000.0);
+    printf("time returned is %f \n", (double)tim.tv_sec+(tim.tv_usec/1000000.0));
     return (double)tim.tv_sec+(tim.tv_usec/1000000.0);
 }
 
