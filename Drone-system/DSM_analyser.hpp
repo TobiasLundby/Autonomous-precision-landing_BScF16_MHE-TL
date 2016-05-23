@@ -16,7 +16,7 @@
 #include <stdbool.h>
 
 #include <time.h>       /* time */
-#include <sys/time.h>   /* time */
+//#include <sys/time.h>   /* time */
 
 #include <wiringSerial.h>
 
