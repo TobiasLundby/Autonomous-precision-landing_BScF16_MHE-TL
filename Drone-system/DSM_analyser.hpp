@@ -112,7 +112,7 @@ private: // Variables
 
     long long time_byte         = 0;
     long long time_last_byte    = 0;
-    const int frame_timeout     = 5000; // micro seconds 1ms=1000us
+    const long long frame_timeout     = 5000; // micro seconds 1ms=1000us
 
     int UNSAFE_syncs;
     int avail_bytes     = 0; // 0 since no avaliable bytes when starting up
@@ -207,7 +207,7 @@ long long DSM_RX_TX::currentTimeUs()
     struct timespec current;
     clock_gettime(CLOCK_REALTIME, &current);
     //return (long long)current.tv_sec * 1000000000L + current.tv_nsec;
-    printf("time returned is %li \n", current.tv_nsec);
+    //printf("time returned is %li \n", current.tv_nsec);
     return (long long)current.tv_nsec;
 }
 
@@ -362,7 +362,7 @@ void DSM_RX_TX::RX_TX()
                 time_last_byte = time_byte;
                 time_byte = currentTimeUs();
                 if (debug_time)
-                    printf("Time between bytes are %f and timeout is %f \n", time_byte - time_last_byte, frame_timeout);
+                    printf("Time between bytes are %li and timeout is %li \n", time_byte - time_last_byte, frame_timeout);
                 byte_in = serialGetchar(ser_handle); //RX byte
                 byte_counter++;
                 success_bytes++;
