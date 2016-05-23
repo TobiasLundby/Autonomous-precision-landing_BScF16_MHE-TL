@@ -113,7 +113,7 @@ private: // Variables
 
     double time_byte         = 0;
     double time_last_byte    = 0;
-    const double frame_timeout     = ; // nano seconds 1ms=100000ns
+    const double frame_timeout     = 0; // nano seconds 1ms=100000ns
 
     int UNSAFE_syncs;
     int avail_bytes     = 0; // 0 since no avaliable bytes when starting up
