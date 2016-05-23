@@ -481,7 +481,7 @@ void DSM_RX_TX::RX_TX()
                 time_last_byte = time_byte;
                 time_byte = currentTimeUs();
                 if (debug_time)
-                    printf("Time between bytes are %f and timeout is %f \n", time_byte - time_last_byte, frame_timeout);
+                    printf("Time between bytes are %li and timeout is %li \n", time_byte - time_last_byte, frame_timeout);
                 byte_in = serialGetchar(ser_handle); //RX byte
                 serialPutchar(ser_handle,byte_in); //TX byte
 
