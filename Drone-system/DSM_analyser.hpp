@@ -202,9 +202,10 @@ long long DSM_RX_TX::currentTimeUs()
 *   Function : Returns the current time in us
 ******************************************************************************/
 {
-    timeval current;
+    //timeval current;
     //gettimeofday(&current, 0);
-    clock_gettime(clock_type, &current);
+    struct timespec current;
+    clock_gettime(CLOCK_REALTIME, &current);
     return (long long)current.tv_sec * 1000000L + current.tv_usec;
 }
 
