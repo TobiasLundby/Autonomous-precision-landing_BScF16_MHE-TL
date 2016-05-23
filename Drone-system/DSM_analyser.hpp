@@ -203,7 +203,8 @@ long long DSM_RX_TX::currentTimeUs()
 ******************************************************************************/
 {
     timeval current;
-    gettimeofday(&current, 0);
+    //gettimeofday(&current, 0);
+    clock_gettime(clock_type, &current);
     return (long long)current.tv_sec * 1000000L + current.tv_usec;
 }
 
