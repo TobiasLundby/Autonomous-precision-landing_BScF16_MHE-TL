@@ -86,7 +86,7 @@ private: // Variables
     bool debug_expert   = false;
     bool debug_packet   = false;
     bool debug_errors   = true;
-    bool debug_time     = true;
+    bool debug_time     = false;
     bool debug_time_expert     = false;
 
     int DSM_STATE       = DSM_S_UNSAFE;
@@ -113,7 +113,7 @@ private: // Variables
 
     double time_byte         = 0;
     double time_last_byte    = 0;
-    const double frame_timeout     = 0; // nano seconds 1ms=100000ns
+    const double frame_timeout = 0.003; // nano seconds 1ms=100000ns
 
     int UNSAFE_syncs;
     int avail_bytes     = 0; // 0 since no avaliable bytes when starting up
