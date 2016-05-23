@@ -211,7 +211,7 @@ double DSM_RX_TX::currentTimeUs()
     //return (long)current.tv_sec * 1000000L + current.tv_usec;
     struct timeval tim;
     gettimeofday(&tim, NULL);
-    return (double)tim.tv_sec+(tim.tv_usec/1000000.0)
+    return (double)tim.tv_sec+(tim.tv_usec/1000000.0);
 }
 
 void DSM_RX_TX::decode_channel_value(package &p,int byte)
