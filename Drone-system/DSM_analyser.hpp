@@ -72,7 +72,7 @@ public: // Methods
     int get_in_channel_value(int channel);
     int get_out_channel_value(int channel);
 private: // Methods
-    long currentTimeUs();
+    double currentTimeUs();
     void decode_channel_value(package &p, int byte);
     void set_channel_value(package &p,int channel, int value);
     void decode_packet(package &p_in);
