@@ -113,7 +113,7 @@ private: // Variables
 
     double time_byte         = 0;
     double time_last_byte    = 0;
-    const double frame_timeout = 0.002; // nano seconds 1ms=100000ns
+    const double frame_timeout = 0.005; // nano seconds 1ms=100000ns
 
     int UNSAFE_syncs;
     int avail_bytes     = 0; // 0 since no avaliable bytes when starting up
@@ -407,12 +407,12 @@ void DSM_RX_TX::RX_TX()
                                 sync_value = (256*old_byte_in)+byte_in;
                                 //printf("******* Preamble ********* Sync_val: %i\n",sync_value);
 
-                                if((((sync_value == sync_value_expected or (sync_value >= sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)) and ((time_byte - time_last_byte) > frame_timeout))
+                                if((((sync_value == sync_value_expected or (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)) and ((time_byte - time_last_byte) > frame_timeout))
                                     || (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
                                     && (sync_value < (sync_value_expected_next + SYNC_TOLERANCE)))) and ((time_byte - time_last_byte) > frame_timeout))
                                 {
-                                    if (sync_value > sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)
-                                    {
+                                    if ((sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS) and sync_value != sync_value_expected) 
+                                    {                                   {
                                         packet_errors += sync_value - sync_value_expected;
                                         if (debug_errors)
                                             printf("There have been %i errors\n",packet_errors);
@@ -492,12 +492,12 @@ void DSM_RX_TX::RX_TX()
                 serialPutchar(ser_handle,byte_in); //TX byte
 
                 sync_value = (256*old_byte_in)+byte_in;
-                if(((sync_value == sync_value_expected or (sync_value >= sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)) ||
+                if(((sync_value == sync_value_expected or (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)) ||
                     (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value) &&
                        (sync_value < (sync_value_expected_next + SYNC_TOLERANCE)))) &&
                     ((time_byte - time_last_byte) > frame_timeout))
                 {
-                    if (sync_value > sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)
+                    if ((sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS) and sync_value != sync_value_expected)
                     {
                         packet_errors += sync_value - sync_value_expected;
                         if (debug_errors)
