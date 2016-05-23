@@ -16,7 +16,7 @@
 #include <stdbool.h>
 
 #include <time.h>       /* time */
-//#include <sys/time.h>   /* time */
+#include <sys/time.h>   /* time */
 
 #include <wiringSerial.h>
 
@@ -202,13 +202,13 @@ long DSM_RX_TX::currentTimeUs()
 *   Function : Returns the current time in us
 ******************************************************************************/
 {
-    //timeval current;
-    //gettimeofday(&current, 0);
-    struct timespec current;
-    clock_gettime(CLOCK_REALTIME, &current);
+    timeval current;
+    gettimeofday(&current, 0);
+    //struct timespec current;
+    //clock_gettime(CLOCK_REALTIME, &current);
     //return (long long)current.tv_sec * 1000000000L + current.tv_nsec;
     //printf("time returned is %li \n", current.tv_nsec);
-    return (long long)current.tv_nsec;
+    return (long)current.tv_sec * 1000000000L + current.tv_usec;
 }
 
 void DSM_RX_TX::decode_channel_value(package &p,int byte)
