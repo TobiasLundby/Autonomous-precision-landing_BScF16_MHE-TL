@@ -206,7 +206,9 @@ long long DSM_RX_TX::currentTimeUs()
     //gettimeofday(&current, 0);
     struct timespec current;
     clock_gettime(CLOCK_REALTIME, &current);
-    return (long long)current.tv_sec * 1000000000L + current.tv_nsec;
+    //return (long long)current.tv_sec * 1000000000L + current.tv_nsec;
+    printf("time returned is %f\n", current.tv_nsec);
+    return (long long)current.tv_nsec;
 }
 
 void DSM_RX_TX::decode_channel_value(package &p,int byte)
