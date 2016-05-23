@@ -398,7 +398,7 @@ void DSM_RX_TX::RX_TX()
                                     || (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
                                     && (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))))
                                 {
-                                    if (sync_value >= sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)
+                                    if (sync_value > sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)
                                     {
                                         packet_errors += sync_value - sync_value_expected;
                                         if (debug_errors)
@@ -482,7 +482,7 @@ void DSM_RX_TX::RX_TX()
                        (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))) &&
                     ((time_byte - time_last_byte) > frame_timeout))
                 {
-                    if (sync_value >= sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)
+                    if (sync_value > sync_value_expected and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)
                     {
                         packet_errors += sync_value - sync_value_expected;
                         if (debug_errors)
