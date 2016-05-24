@@ -186,9 +186,9 @@ private: // Variables
   int hsv_h_sensitivity = 15; // 5 for big green led and 24 for most other
   int hsv_h_low         = 40;//hsv_h_base - hsv_h_sensitivity;
   int hsv_h_upper       = 100;//hsv_h_base + hsv_h_sensitivity;
-  int hsv_s_low         = 100;
+  int hsv_s_low         = 50;//100;
   int hsv_s_upper       = 255;
-  int hsv_v_low         = 100;
+  int hsv_v_low         = 50;//100;
   int hsv_v_upper       = 255;
   int gaussian_blur         = 3; //Must be positive and odd. Higher, more blur
   bool enable_gaussian_blur = false;
@@ -208,10 +208,10 @@ private: // Variables
   int orientation_max_change = 20;
   string diode_tracking_filename = "data_diode_tracking.csv";
   ofstream data_diode_tracking;
-  bool log_diode_tracking = true;
+  bool log_diode_tracking = false;
   int detected_keypoints;
-  bool diode_save_frame = true;
-  int diode_save_frame_num = 250; //664
+  bool diode_save_frame = false;
+  int diode_save_frame_num = 0; //664
 
   // MatchShape variables
   bool shape_loaded = false;        // True if shape is loaded
