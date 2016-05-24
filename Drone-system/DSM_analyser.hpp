@@ -51,7 +51,7 @@ typedef struct package{
 #define CHANNEL6_DEFAULT    0
 #define CHANNEL_MAXVALUE    1700
 
-#define safe_mode_threshold 10 /* Amount of seconds before change from UNSAFE to SAFE mode */
+#define safe_mode_threshold 5 /* Amount of seconds before change from UNSAFE to SAFE mode */
 
 #define DSM_S_IDLE          0 /* Used while there is no bytes to recieve and changes values if needed */
 #define DSM_S_SAFE          1 /* Used if it has not made any errors in UNSAFE mode for safe_mode_threshold seconds */
@@ -81,9 +81,10 @@ private: // Methods
 public: // Variables
     int packet_errors = 0;
 private: // Variables
-    bool debug_simple   = true;
+    bool debug_simple   = false;
     bool debug_medium   = false;
     bool debug_expert   = false;
+    bool debug_insane   = false;
     bool debug_packet   = false;
     bool debug_errors   = true;
     bool debug_time     = false;
@@ -113,7 +114,9 @@ private: // Variables
 
     double time_byte         = 0;
     double time_last_byte    = 0;
-    const double frame_timeout = 0.005; // nano seconds 1ms=100000ns
+    const double frame_timeout = 0.01; // micro seconds
+    double time_diff_current = 0;
+    double time_diff_last = 0;
 
     int UNSAFE_syncs;
     int avail_bytes     = 0; // 0 since no avaliable bytes when starting up
@@ -367,6 +370,8 @@ void DSM_RX_TX::RX_TX()
                 old_byte_in = byte_in;
                 time_last_byte = time_byte;
                 time_byte = currentTimeUs();
+                time_diff_last = time_diff_current;
+                time_diff_current = time_byte - time_last_byte;
                 if (debug_time)
                     printf("Time between bytes are %f (calculated from %f and %f) and timeout is %f \n", time_byte - time_last_byte, time_byte, time_last_byte, frame_timeout);
                 byte_in = serialGetchar(ser_handle); //RX byte
@@ -400,6 +405,22 @@ void DSM_RX_TX::RX_TX()
                             case  HIGH: // *** BYTE_TYPE = HIGH ***
                                 package_in.byte_H[0] = byte_in;
                                 BYTE_TYPE = LOW;
+
+                                sync_value = (256*old_byte_in)+byte_in;
+                                if (debug_insane) {
+                                    printf("Value is: %i \n", sync_value);
+                                    printf("Expected value: %i \n", sync_value == sync_value_expected);
+                                    printf("Expected value but varying low: %i \n", sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS);
+                                    printf("Expected value but varying high: %i \n", sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS);
+                                    printf("Next value low: %i \n", (sync_value_expected_next - SYNC_TOLERANCE) < sync_value);
+                                    printf("Next value high: %i \n", sync_value < (sync_value_expected_next + SYNC_TOLERANCE));
+                                    printf("Expected value varying combined: %i \n", (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS
+                                            and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS));
+                                    printf("Expected value varying future combined: %i \n", (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
+                                        and (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))));
+                                    printf("Time last: %i \n", time_diff_last > frame_timeout);
+                                    printf("Time: %i \n\n", time_diff_current > frame_timeout);
+                                }
                                 break; // Break for BYTE_TYPE HIGH
                             case  LOW: // *** BYTE_TYPE = LOW ***
                                 package_in.byte_L[0] = byte_in;
@@ -407,11 +428,29 @@ void DSM_RX_TX::RX_TX()
                                 sync_value = (256*old_byte_in)+byte_in;
                                 //printf("******* Preamble ********* Sync_val: %i\n",sync_value);
 
-                                if((((sync_value == sync_value_expected or (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)) and ((time_byte - time_last_byte) > frame_timeout))
-                                    || (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
-                                    && (sync_value < (sync_value_expected_next + SYNC_TOLERANCE)))) and ((time_byte - time_last_byte) > frame_timeout))
+                                if (debug_insane) {
+                                    printf("Value is: %i \n", sync_value);
+                                    printf("Expected value: %i \n", sync_value == sync_value_expected);
+                                    printf("Expected value but varying low: %i \n", sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS);
+                                    printf("Expected value but varying high: %i \n", sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS);
+                                    printf("Next value low: %i \n", (sync_value_expected_next - SYNC_TOLERANCE) < sync_value);
+                                    printf("Next value high: %i \n", sync_value < (sync_value_expected_next + SYNC_TOLERANCE));
+                                    printf("Expected value varying combined: %i \n", (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS
+                                            and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS));
+                                    printf("Expected value varying future combined: %i \n", (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
+                                        and (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))));
+                                    printf("Time last: %i \n", time_diff_last > frame_timeout);
+                                    printf("Time: %i \n\n", time_diff_current > frame_timeout);
+                                }
+
+                                if(((sync_value == sync_value_expected
+                                    or (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS
+                                        and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS))
+                                    or (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
+                                        and (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))))
+                                    and (time_diff_last > frame_timeout))
                                 {
-                                    if ((sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS) and sync_value != sync_value_expected) 
+                                    if ((sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS) and sync_value != sync_value_expected)
                                     {
                                         packet_errors += sync_value - sync_value_expected;
                                         if (debug_errors)
@@ -486,18 +525,35 @@ void DSM_RX_TX::RX_TX()
                 old_byte_in = byte_in;
                 time_last_byte = time_byte;
                 time_byte = currentTimeUs();
+                time_diff_last = time_diff_current;
+                time_diff_current = time_byte - time_last_byte;
                 if (debug_time)
                     printf("Time between bytes are %f (calculated from %f and %f) and timeout is %f \n", time_byte - time_last_byte, time_byte, time_last_byte, frame_timeout);
                 byte_in = serialGetchar(ser_handle); //RX byte
                 serialPutchar(ser_handle,byte_in); //TX byte
 
                 sync_value = (256*old_byte_in)+byte_in;
-                if(((sync_value == sync_value_expected 
-                    or (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS 
-                        and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS)) 
-                    or (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value) 
-                        and (sync_value < (sync_value_expected_next + SYNC_TOLERANCE)))) 
-                    and ((time_byte - time_last_byte) > frame_timeout))
+                if (debug_insane and false) {
+                    printf("Value is: %i \n", sync_value);
+                    printf("Expected value: %i \n", sync_value == sync_value_expected);
+                    printf("Expected value but varying low: %i \n", sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS);
+                    printf("Expected value but varying high: %i \n", sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS);
+                    printf("Next value low: %i \n", (sync_value_expected_next - SYNC_TOLERANCE) < sync_value);
+                    printf("Next value high: %i \n", sync_value < (sync_value_expected_next + SYNC_TOLERANCE));
+                    printf("Expected value varying combined: %i \n", (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS
+                            and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS));
+                    printf("Expected value varying future combined: %i \n", (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
+                        and (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))));
+                    printf("Time last: %i \n", time_diff_last > frame_timeout);
+                    printf("Time: %i \n\n", time_diff_current > frame_timeout);
+                }
+
+                if(((sync_value == sync_value_expected
+                    or (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS
+                        and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS))
+                    or (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
+                        and (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))))
+                    and (time_diff_last > frame_timeout))
                 {
                     if ((sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS) and sync_value != sync_value_expected)
                     {
@@ -505,6 +561,7 @@ void DSM_RX_TX::RX_TX()
                         if (debug_errors)
                             printf("There have been %i errors\n",packet_errors);
                     }
+                    printf("Time last: %f \n", time_diff_last);
                     sync_value_expected = sync_value;
                     sync_value_expected_next = sync_value_expected + SYNC_INCREMENT;
                     if (debug_expert)
@@ -517,13 +574,16 @@ void DSM_RX_TX::RX_TX()
                             printf("Safe_zone_zyncs: %i Sync_value: %i Sync_value_expected: %i Sync_value_expected_next: %i \n",safe_zone_syncs,sync_value,sync_value_expected,sync_value_expected_next);
                     }
                     else if(safe_zone_syncs>0)
+                    {
                         safe_zone_syncs--;
+                        last_sync_dist = 0;
+                    }
                 }
                 else
                     last_sync_dist++;
 
                 //DETERMINE WHEATHER OR NOT THE THING BETEETH IS VALID
-                if(safe_zone_syncs == SAFE_ZONE_THRESHOLD && last_sync_dist == 14)
+                if(safe_zone_syncs >= SAFE_ZONE_THRESHOLD && last_sync_dist == 14)
                 {
                     byte_counter = 0;
                     PREAMBLE = true;

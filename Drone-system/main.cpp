@@ -154,7 +154,7 @@ int main(int argc,char* argv[])
             case MAIN_S_INIT:
                 serial_con.DSM_analyse(false); // RX and TX until it is safe.
                 MAIN_STATE = MAIN_S_TEST_DSM;
-                printf("Switching from MAIN_S_INIT to MAIN_S_TEST_DSM"); // Debug for change state
+                printf("Switching from MAIN_S_INIT to MAIN_S_TEST_DSM\n"); // Debug for change state
                 // MAIN_STATE = MAIN_S_FORCE_DOWN; // Change state
                 // printf("Switching from MAIN_S_INIT to MAIN_S_FORCE_DOWN"); // Debug for change state
                 //serial_con.enable_all_max();
