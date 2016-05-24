@@ -38,7 +38,7 @@ using namespace std;
 # define HUE_ORANGE     11                      /* 0-22 */
 # define HUE_YELLOW     30                      /* 22-38 */
 # define HUE_GREEN      60                      /* 38-75 */
-# define HUE_GREEN_LED  45                      /* 38-75 */
+# define HUE_GREEN_LED  55                      /* 38-75 */
 # define HUE_BLUE       100                      /* 75-130 */
 # define HUE_VIOLET     145                      /* 130-160 */
 # define HUE_RED        160                      /* 160-179; since the red color appears darker, more towards blue, 160 is choosen */
@@ -98,7 +98,7 @@ using namespace std;
 
 #define SHAPE_FOUND_THRESH  45             // Value below is a match
 #define MINIMUM_DRONE_SIZE  500             // For discarding too small contours            // Value below is a match
-#define MAXIMUM_DRONE_SIZE  10000
+
  // For test
  #define SAVE_FRAME_NUM     360           // Frame that is saved in frame_analysis
 
@@ -184,15 +184,16 @@ private: // Variables
  // Diode detection Variables
   // HSV limits for color seperation (presumably changable)
   int hsv_h_base        = HUE_GREEN_LED; //60 is for green, 160 is for red
-  int hsv_h_sensitivity = 5; // 5 for big green led and 24 for most other
-  int hsv_h_low         = hsv_h_base - hsv_h_sensitivity;
-  int hsv_h_upper       = hsv_h_base + hsv_h_sensitivity;
+  int hsv_h_sensitivity = 15; // 5 for big green led and 24 for most other
+  int hsv_h_low         = 40;//hsv_h_base - hsv_h_sensitivity;
+  int hsv_h_upper       = 100;//hsv_h_base + hsv_h_sensitivity;
   int hsv_s_low         = 100;
   int hsv_s_upper       = 255;
   int hsv_v_low         = 100;
   int hsv_v_upper       = 255;
   int gaussian_blur         = 3; //Must be positive and odd. Higher, more blur
-  int dilate_color_iterations = 3;
+  bool enable_gaussian_blur = false;
+  int dilate_color_iterations = 4;
 
   // Setup SimpleBlobDetector parameters.
 	SimpleBlobDetector::Params params;
@@ -201,7 +202,7 @@ private: // Variables
   int mean_multiply_factor = 1000000; //Effects the one below linear
   int color_threashold_1 = 60;
   int color_threashold_2 = 40;
-  int hue_radius = 20; // [%]
+  int hue_radius = 10; // [%]
 
   vector<KeyPoint> leds; // Stores the red LED keypoints
   xyz_position diode_drone;
@@ -209,6 +210,9 @@ private: // Variables
   string diode_tracking_filename = "data_diode_tracking.csv";
   ofstream data_diode_tracking;
   bool log_diode_tracking = true;
+  int detected_keypoints;
+  bool diode_save_frame = true;
+  int diode_save_frame_num = 250; //664
 
   // MatchShape variables
   bool shape_loaded = false;        // True if shape is loaded
@@ -225,7 +229,6 @@ private: // Variables
   int thresh_tresh = THRESH_THRESH;
   int shape_found_thresh = SHAPE_FOUND_THRESH;
   int minimum_drone_size = MINIMUM_DRONE_SIZE;
-  int maximum_drone_size = MAXIMUM_DRONE_SIZE;
 
 
   bool wait_enable = false;
@@ -278,9 +281,10 @@ drone_tracking::drone_tracking(string filenameIn)
     capture.set(CV_CAP_PROP_FRAME_HEIGHT,720);
     cout << "Capture is opened" << endl;
     create_windows();
-    data_diode_tracking.open (diode_tracking_filename);
-    data_diode_tracking << "frame,diodes,orientation,orientation_length_factor,orientation_run\n";
-
+    if (log_diode_tracking) {
+      data_diode_tracking.open (diode_tracking_filename);
+      data_diode_tracking << "frame,drone_detected,detected_keypoints,diodes,orientation[deg],orientation_length_factor[pixel],orientation_run[1=top,2=bottom]\n";
+    }
     for(;;) { // Processing
       capture >> frame_bgr;
       if(frame_bgr.empty())
@@ -289,10 +293,14 @@ drone_tracking::drone_tracking(string filenameIn)
         if (start_skip_frames < global_frame_counter)
           frame_analysis(); // Master method for analysis
       global_frame_counter++;
-      cout << frame_bgr.rows << " " << frame_bgr.cols << endl;
+      if (debug) {
+        cout << "The frame dimensions are:" << frame_bgr.cols << "x" << frame_bgr.rows << endl;
+      }
       if(waitKey(10) >= 0)
         break;
     }
+    if (log_diode_tracking)
+      data_diode_tracking.close();
     shape_data.close();
   } else { // Error capture is not opened
     cout << "No capture to open" << endl;
@@ -314,25 +322,25 @@ void drone_tracking::create_windows()
   window_names.push_back("Input stream"); window_show.push_back(true); //Window 0 *
 
   // Diode detection
-  window_names.push_back("Recognized red LEDs"); window_show.push_back(true); //Window 1 *
+  window_names.push_back("Recognized LEDs"); window_show.push_back(true); //Window 1 *
   window_names.push_back("Color mask"); window_show.push_back(true); //Window 2 *
-  window_names.push_back("Color seperation frame"); window_show.push_back(false); //Window 3 *
+  window_names.push_back("Color seperation frame"); window_show.push_back(true); //Window 3 *
   //window_names.push_back("Other2"); window_show.push_back(true);//Window 4
   //window_names.push_back("Other3"); window_show.push_back(true);//Window 5
 
   // Shape detection
   window_names.push_back("Drone shape"); window_show.push_back(false); //Window 4 *
   window_names.push_back("Frame contours"); window_show.push_back(false); //Window 5
-  window_names.push_back("Tracking"); window_show.push_back(true); //Window 6 *
+  window_names.push_back("Tracking"); window_show.push_back(false); //Window 6 *
   window_names.push_back("Drone masked out, inside"); window_show.push_back(false); //Window 7 *
   window_names.push_back("Shape frame"); window_show.push_back(false); //Window 8
   window_names.push_back("Contours on shape frame"); window_show.push_back(false); //Window 9
   window_names.push_back("Contour0"); window_show.push_back(false); //Window 10
   window_names.push_back("Contour1"); window_show.push_back(false); //Window 11
-  window_names.push_back("Thresholded frame"); window_show.push_back(true); //Window 12
+  window_names.push_back("Thresholded frame"); window_show.push_back(false); //Window 12
   window_names.push_back("Erode"); window_show.push_back(false); //Window 13
   window_names.push_back("Dilate"); window_show.push_back(false); //Window 14
-  window_names.push_back("Settings"); window_show.push_back(true); //Window 15
+  window_names.push_back("Settings"); window_show.push_back(false); //Window 15
   window_names.push_back("Contourx"); window_show.push_back(false); // 16
   //window_names.push_back("Window N"); window_show.push_back(true); //Window N
   if (window_enable)
@@ -367,11 +375,17 @@ void drone_tracking::window_taskbar_create(int window_number)
 *   Function : Creates the specified task bars
 ******************************************************************************/
 {
-  if (window_number==1) // Test which window window_taskbar_create is called with
+  if (window_number==1){ // Test which window window_taskbar_create is called with
      createTrackbar("Threashold", window_names[window_number], &color_threashold_1, 1000); // 1st arg: name; 2nd arg: window; 3rd arg: pointer to the variabel (must be int); 4th arg: max value
+     createTrackbar("Detection radius", window_names[window_number], &hue_radius, 255);
+  }
   if (window_number==2){ // Test which window window_taskbar_create is called with
       createTrackbar("HUE GREEN LOW", window_names[window_number], &hsv_h_low, 255);
       createTrackbar("HUE GREEN UPPER", window_names[window_number], &hsv_h_upper, 255);
+      createTrackbar("SATURATION LOW", window_names[window_number], &hsv_s_low, 255);
+      createTrackbar("SATURATION UPPER", window_names[window_number], &hsv_s_upper, 255);
+      createTrackbar("VIBRANCE LOW", window_names[window_number], &hsv_v_low, 255);
+      createTrackbar("VIBRANCE UPPER", window_names[window_number], &hsv_v_upper, 255);
   }
   if (window_number==3) // Test which window window_taskbar_create is called with
      createTrackbar("Dilate iterations", window_names[window_number], &dilate_color_iterations, 10); // 1st arg: name; 2nd arg: window; 3rd arg: pointer to the variabel (must be int); 4th arg: max value
@@ -386,7 +400,6 @@ void drone_tracking::window_taskbar_create(int window_number)
     createTrackbar("thresh_thresh", window_names[window_number], &thresh_tresh, 255);
     createTrackbar("match treshold",window_names[window_number], &shape_found_thresh,200);
     createTrackbar("drone minimum size",window_names[window_number], &minimum_drone_size,2000);
-    createTrackbar("drone maximum size",window_names[window_number], &maximum_drone_size,10000);
   }
 
 /*
@@ -433,6 +446,13 @@ void drone_tracking::frame_analysis()
   bool force_down = false;
   double scale_factor;
   double temp_scale_factor = 0;
+  int drone_detected2 = 0;
+  int diodes_inside = 0;
+  double rect_p_gain = 1.10;
+  int x_mid = 1280/2;
+  int y_mid = 720/2;
+  int x_base = 400;
+  int y_base = 300;
   if (leds.size() > 0) {
     for (size_t i = 0; i < leds.size() - 1; i++) {
       for (size_t j = i + 1; j < leds.size(); j++) {
@@ -441,43 +461,47 @@ void drone_tracking::frame_analysis()
     }
     temp_scale_factor /= leds.size();
     cout << temp_scale_factor << endl;
-    scale_factor = temp_scale_factor/400;
-    double rect_p_gain = 1.10;
-    int x_mid = 1920/2;
-    int y_mid = 1080/2;
-    int x_base = 500;
-    int y_base = 400;
-    rectangle( frame_bgr, Point( x_mid-((x_base*scale_factor*rect_p_gain)/2), y_mid-((y_base*scale_factor*rect_p_gain)/2) ), Point( x_mid+((x_base*scale_factor*rect_p_gain)/2), y_mid+((y_base*scale_factor*rect_p_gain)/2)), Scalar( 0, 0, 255 ), +1, 4 );
+    scale_factor = temp_scale_factor/4000;
+    cout << scale_factor << endl;
 
-    int diodes_inside = 0;
     for (size_t i = 0; i < leds.size(); i++) {
-      if ((leds[i].pt.x > x_mid-((x_base*scale_factor*rect_p_gain)/2) and leds[i].pt.x < x_mid+((x_base*scale_factor*rect_p_gain)/2)) and
-      (leds[i].pt.y > y_mid-((y_base*scale_factor*rect_p_gain)/2) and leds[i].pt.y < y_mid+((y_base*scale_factor*rect_p_gain)/2))) {
+      if ((leds[i].pt.x > x_mid-((x_base*(1+scale_factor)*rect_p_gain)/2) and leds[i].pt.x < x_mid+((x_base*(1+scale_factor)*rect_p_gain)/2)) and
+      (leds[i].pt.y > y_mid-((y_base*(1+scale_factor)*rect_p_gain)/2) and leds[i].pt.y < y_mid+((y_base*(1+scale_factor)*rect_p_gain)/2))) {
         cout << "led inside: " << i << endl;
         diodes_inside++;
       }
     }
-    if (diodes_inside == leds.size())
-      force_down = true;
 
     if (find_position(leds, diode_drone)) {
        if (diode_drone.orientation < diode_drone.orientation - orientation_max_change and diode_drone.orientation > diode_drone.orientation + orientation_max_change) {
          diode_drone.orientation = diode_drone.orientation_old;
+       } else { // Drone has been found and an angle has been calculated!
+         drone_detected2 = 1;
        }
     }
 
     if(false)
       cout << "Drone orientation is "<< diode_drone.orientation << endl;
+
   }
+  if (diodes_inside == leds.size() and leds.size() >= 3) {
+    rectangle( frame_bgr, Point( x_mid-((x_base*(1+scale_factor)*rect_p_gain)/2), y_mid-((y_base*(1+scale_factor)*rect_p_gain)/2) ), Point( x_mid+((x_base*(1+scale_factor)*rect_p_gain)/2), y_mid+((y_base*(1+scale_factor)*rect_p_gain)/2)), Scalar( 0, 255, 0 ), +1, 4 );
+    force_down = true;
+  } else {
+    rectangle( frame_bgr, Point( x_mid-((x_base*(1+scale_factor)*rect_p_gain)/2), y_mid-((y_base*(1+scale_factor)*rect_p_gain)/2) ), Point( x_mid+((x_base*(1+scale_factor)*rect_p_gain)/2), y_mid+((y_base*(1+scale_factor)*rect_p_gain)/2)), Scalar( 0, 0, 255 ), +1, 4 );
+  }
+
   if (log_diode_tracking) {
     if (leds.size() > 0) {
-      data_diode_tracking << global_frame_counter << "," << leds.size() << "," << diode_drone.orientation << "," << diode_drone.orientation_length_factor << "," << diode_drone.orientation_run << "\n" ;
+      data_diode_tracking << global_frame_counter << "," << drone_detected2 << "," << detected_keypoints << "," << leds.size() << "," << diode_drone.orientation << "," << diode_drone.orientation_length_factor << "," << diode_drone.orientation_run << "\n" ;
     } else {
-      data_diode_tracking << global_frame_counter << ",0,0,0,0\n";
+      data_diode_tracking << global_frame_counter << ",0,0,0,0,0\n";
     }
   }
 
   show_frame(window_names[0], window_show[0], frame_bgr); // Show original frame
+  if (global_frame_counter == diode_save_frame_num and diode_save_frame)
+    frame_save(frame_bgr, "frame_bgr_"+to_string(diode_save_frame_num));
 
 
   // Hejgaard analysis
@@ -558,7 +582,10 @@ vector<KeyPoint> drone_tracking::diode_detection()
 
   cvtColor(frame_bgr, frame_hsv, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
   cvtColor(frame_bgr, frame_gray, COLOR_BGR2GRAY); //Convert the captured frame from BGR to GRAY
-  GaussianBlur(frame_gray, frame_gray_with_Gblur, Size(gaussian_blur, gaussian_blur), 0); // Gaussian blur on gray frame, 1st arg: input frame; 2nd arg: output frame; 3rd arg: defines the blur radius; 4th arg: Gaussian kernel standard deviation in X direction, when this is 0 it is computed from the 3rd arg. Gaussaian blur is used since an example used this.
+  if (enable_gaussian_blur)
+    GaussianBlur(frame_gray, frame_gray_with_Gblur, Size(gaussian_blur, gaussian_blur), 0); // Gaussian blur on gray frame, 1st arg: input frame; 2nd arg: output frame; 3rd arg: defines the blur radius; 4th arg: Gaussian kernel standard deviation in X direction, when this is 0 it is computed from the 3rd arg. Gaussaian blur is used since an example used this.
+  else
+    frame_gray.copyTo(frame_gray_with_Gblur);
 
   inRange(frame_hsv, Scalar(hsv_h_low,hsv_s_low,hsv_v_low), Scalar(hsv_h_upper, hsv_s_upper, hsv_v_upper), mask_red); // Find the areas which contain red color. 1st arg: inpur frame; 2nd arg: the lower HSV limits; 3rd arg: the upper HSV limits; 4th arg: the output mask.
   frame_red = Scalar(0); // Clear the red frame.
@@ -571,13 +598,17 @@ vector<KeyPoint> drone_tracking::diode_detection()
   detected_leds = keypoint_detection(frame_gray, frame_gray_with_Gblur, mask_red); // Detect the red LEDs
 
   if (debug) {
-    cout << "There are " << detected_leds.size() << " red LEDs" << endl;
+    cout << "There are " << detected_leds.size() << " LEDs" << endl;
     if (second_detection_run)
       cout << "** secondary_detection_run **" << endl;
   }
 
   show_frame(window_names[2], window_show[2], frame_red); // Show the frame only containing the red color
   show_frame(window_names[3], window_show[3], mask_red); // Show the red masking frame
+  if (global_frame_counter == diode_save_frame_num and diode_save_frame) {
+    frame_save(frame_red, "frame_red_"+to_string(diode_save_frame_num));
+    frame_save(mask_red, "frame_mask_"+to_string(diode_save_frame_num));
+  }
 
   return detected_leds;
 }
@@ -614,6 +645,7 @@ vector<KeyPoint> drone_tracking::keypoint_detection(Mat in_frame_gray, Mat in_fr
   vector<KeyPoint> keypoints; // Used for holding all the keypoints
   vector<KeyPoint> temp_keypoints; // Used to hold the filtered keypoints (red keypoints)
 	detector->detect(in_frame_gray_with_Gblur, keypoints); // Detect the keyframes from the frame
+  detected_keypoints = keypoints.size(); // Used for logging
   temp_keypoints = keypoint_filtering(keypoints, second_detection_run, in_mask_red); // Filter the detected keypoints
 
   if (!temp_keypoints.size()) { // See if any keypoints matched a red LED. If not then detect using different frame (mask_red)
@@ -627,12 +659,15 @@ vector<KeyPoint> drone_tracking::keypoint_detection(Mat in_frame_gray, Mat in_fr
   im_with_keypoints = Scalar(0,0,0); // Clear all the channels in the image
   drawKeypoints( frame_bgr, keypoints, im_with_keypoints, Scalar(0,0,255), DrawMatchesFlags::DRAW_RICH_KEYPOINTS ); // Show the keypoints on a frame. 1st arg: input frame; 2nd arg: vector with keypoints to be drawn; 3rd arg: output frame; 4th arg: color of the drawn keypoints (red here); 5th arg: For each keypoint, the circle around keypoint with keypoint size and orientation will be drawn.
   for (size_t i = 0; i < temp_keypoints.size(); i++) // Run through all the red LED keypoints.
-    circle(im_with_keypoints, temp_keypoints[i].pt, temp_keypoints[i].size, Scalar(255, i*40, i*20), temp_keypoints[i].size+(hue_radius/100)); // Draw the right keypoints (the red LEDs). 1st arg: in frame; 2nd arg: the centrum of the circle; 3rd arg: the circle radius; 4th arg: the color of the circle; 5th arg: the width of the circle border.
+    circle(im_with_keypoints, temp_keypoints[i].pt, temp_keypoints[i].size, Scalar(255, i*40, i*20), temp_keypoints[i].size*(1+(hue_radius/100))); // Draw the right keypoints (the red LEDs). 1st arg: in frame; 2nd arg: the centrum of the circle; 3rd arg: the circle radius; 4th arg: the color of the circle; 5th arg: the width of the circle border.
   for (size_t i = 0; i < temp_keypoints.size(); i++) {
     putText(im_with_keypoints, to_string(i), temp_keypoints[i].pt,
     FONT_HERSHEY_COMPLEX_SMALL, 2, cvScalar(0,0,255), 1, CV_AA);
   }
   show_frame(window_names[1], window_show[1], im_with_keypoints); // Show the detected keypoints and the RED leds
+
+  if (global_frame_counter == diode_save_frame_num and diode_save_frame)
+    frame_save(im_with_keypoints, "frame_keypoints_"+to_string(diode_save_frame_num));
 
   return temp_keypoints;
 }
@@ -670,13 +705,13 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
     for (size_t i = 0; i < in_keypoints.size(); i++) { // Run through all the keypoints
       mask_circles = in_mask_red.clone(); // Just to get the proper size for the new frame
       mask_circles = Scalar(0); // Clear the only channel on the circle mask frame
-      circle(mask_circles, in_keypoints[i].pt, in_keypoints[i].size * 1+(hue_radius/100), Scalar(255), -1); // Draw a circle for the mask.
+      circle(mask_circles, in_keypoints[i].pt, in_keypoints[i].size * (1+(hue_radius/100)), Scalar(255), -1); // Draw a circle for the mask.
       //1st arg: in frame; 2nd arg: the centrum of the circle; 3rd arg: the circle radius; 4th arg: the color of the circle; 5th arg: the width of the circle border, when -1 it fills the cirle instead.
       frame_temp = Scalar(0); // Clear the only channel on the circle mask frame
       in_mask_red.copyTo(frame_temp, mask_circles); // Copy in_mask_red to frame_temp but only the area marked in the mask_circles
       mean_of_frame = (mean(frame_temp)[0]/(pow(in_keypoints[i].size,2)*M_PI))*mean_multiply_factor; // Calculate the mean of the frame using an openCV function. Calculation is relative since it takes the size into account.
 
-      if (debug and false)
+      if (debug or true)
         cout << "Keypoint " << i << " has a mean value of " << mean_of_frame << endl;
 
       int color_threashold; // Used to hold the right color_threashold. Used to (almost) avoid the same code
@@ -795,6 +830,7 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
           drone_position.orientation = (atan2(delta_y, delta_x) * 180 / M_PI);// - 98.945;
           drone_position.orientation_run = 2;
           drone_position.orientation_length_factor = temp_dist;
+          line( frame_bgr, diode_keypoints[diode1_3or4].pt, diode_keypoints[diode2_3or4].pt, Scalar( 102, 0, 204 ));
           /*
           bool rot_cor = false; // rotation correction
           for (size_t i = 0; i < diode_keypoints.size(); i++)
@@ -833,6 +869,8 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
       drone_position.orientation = atan2(delta_y, delta_x) * 180 / M_PI;
       drone_position.orientation_run = 1;
       drone_position.orientation_length_factor = temp_dist;
+      line( frame_bgr, diode_keypoints[min_dist1_diode1].pt, diode_keypoints[min_dist1_diode2].pt, Scalar( 102, 0, 204 ));
+
       /*
       bool rot_cor = false; // rotation correction
       for (size_t i = 0; i < diode_keypoints.size(); i++)
@@ -1003,7 +1041,7 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
     waitKey(wait_time);                         // Wait so visual debugging is possible
 
   bool debug = false;
-  bool show_result = true;
+  bool show_result = false;
 
   // Prepare the frame for tracking
   Mat src_frame_color, src_frame_gray, shape_masked;  // A frame for color and gray
@@ -1054,8 +1092,7 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
   {
     if(match_results[i] < lowest_match_result  // Current value less than lowest
       && match_results[i] < (shape_found_thresh*0.01) // & it is a match
-      && contourArea(frame_contours[i])> minimum_drone_size  // Make sure the contour is large enough to be a drone
-      && contourArea(frame_contours[i]) < maximum_drone_size)
+      && contourArea(frame_contours[i])> minimum_drone_size)  // Make sure the contour is large enough to be a drone
     {
       lowest_match_result = match_results[i];   // Update lowest
       best_match_index = i;                     // Save the index
