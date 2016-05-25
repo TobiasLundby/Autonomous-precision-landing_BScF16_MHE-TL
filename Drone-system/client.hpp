@@ -205,7 +205,7 @@ std::string socket_client::encode_frame(socket_package package)
 {
   std::string string_out;
   string_out += std::to_string(package.field0);
-  string_out += ';';
+  string_out += ';';/*
   string_out += std::to_string(package.field1);
   string_out += ';';
   string_out += std::to_string(package.field2);
@@ -243,7 +243,7 @@ std::string socket_client::encode_frame(socket_package package)
   string_out += std::to_string(package.field18);
   string_out += ';';
   string_out += std::to_string(package.field19);
-  string_out += ';';
+  string_out += ';';*/
   //retval"return_value";
   //return string_out;
   return string_out;
@@ -283,7 +283,7 @@ socket_package socket_client::decode_frame(char string_in[])
     std::cout << "string_string length : " << string_string_in.size() << std::endl;
   }
   m = 0;
-  package_in.field0 = get_field_value(string_string_in, &m);
+  package_in.field0 = get_field_value(string_string_in, &m);/*
   package_in.field1 = get_field_value(string_string_in, &m);
   package_in.field2 = get_field_value(string_string_in, &m);
   package_in.field3 = get_field_value(string_string_in, &m);
@@ -302,7 +302,7 @@ socket_package socket_client::decode_frame(char string_in[])
   package_in.field16 = get_field_value(string_string_in, &m);
   package_in.field17 = get_field_value(string_string_in, &m);
   package_in.field18 = get_field_value(string_string_in, &m);
-  package_in.field19 = get_field_value(string_string_in, &m);
+  package_in.field19 = get_field_value(string_string_in, &m);*/
 
   return package_in;
 }

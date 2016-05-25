@@ -56,6 +56,8 @@ typedef struct package{
 #define DSM_S_IDLE          0 /* Used while there is no bytes to recieve and changes values if needed */
 #define DSM_S_SAFE          1 /* Used if it has not made any errors in UNSAFE mode for safe_mode_threshold seconds */
 #define DSM_S_UNSAFE        2 /* Used when it is not certain that the frames are synced correctly */
+#define DSM_S_FATAL         3 /* Used when everything else fails */
+
 
 /*****************************   Class   *******************************/
 class DSM_RX_TX
@@ -71,6 +73,9 @@ public: // Methods
     void change_channel_offsets(int channel0_offset_value, int channel1_offset_value, int channel2_offset_value, int channel3_offset_value, int channel4_offset_value, int channel5_offset_value, int channel6_offset_value);
     int get_in_channel_value(int channel);
     int get_out_channel_value(int channel);
+    int get_packet_errors();
+    int get_DSM_state();
+    double get_time();
 private: // Methods
     double currentTimeUs();
     void decode_channel_value(package &p, int byte);
@@ -79,9 +84,8 @@ private: // Methods
     void change_packet_values(package &p_in, package &p_out);
     void RX_TX();
 public: // Variables
-    int packet_errors = 0;
 private: // Variables
-    bool debug_simple   = false;
+    bool debug_simple   = true;
     bool debug_medium   = false;
     bool debug_expert   = false;
     bool debug_insane   = false;
@@ -130,6 +134,8 @@ private: // Variables
     int channel4_offset = 0;
     int channel5_offset = 0;
     int channel6_offset = 0;
+
+    int packet_errors = 0;
 
     int ser_handle; // The serial connection (file descriptor)
     package package_in, package_out;
@@ -307,6 +313,36 @@ int DSM_RX_TX::get_out_channel_value(int channel)
     return package_out.channel_value[channel];
 }
 
+int DSM_RX_TX::get_packet_errors()
+/*****************************************************************************
+*   Input    : none
+*   Output   : Packet errors
+*   Function : Returns the number of packet errors
+******************************************************************************/
+{
+    return packet_errors;
+}
+
+int DSM_RX_TX::get_DSM_state()
+/*****************************************************************************
+*   Input    : none
+*   Output   : DSM state
+*   Function : Returns the DSM state
+******************************************************************************/
+{
+    return DSM_STATE;
+}
+
+double DSM_RX_TX::get_time()
+/*****************************************************************************
+*   Input    : none
+*   Output   : time
+*   Function : Returns the time
+******************************************************************************/
+{
+    return currentTimeUs();
+}
+
 bool DSM_RX_TX::DSM_analyse(bool loop)
 /*****************************************************************************
 *   Input    : If loop=true then it loops otherwise it runs once.
@@ -316,6 +352,10 @@ bool DSM_RX_TX::DSM_analyse(bool loop)
 {
     if (loop)
     {
+        while(true)
+            RX_TX();
+
+        /* Below have been replaced with the proper fatal error state
         while(!fatal_error)
             RX_TX();
 
@@ -323,7 +363,8 @@ bool DSM_RX_TX::DSM_analyse(bool loop)
         while (true)
             if(serialDataAvail(ser_handle))
                 serialPutchar(ser_handle,serialGetchar(ser_handle));
-        return false;
+        */
+        return true;
     }
     else
     {
@@ -394,6 +435,8 @@ void DSM_RX_TX::RX_TX()
                     default:
                         if (debug_expert)
                             printf("BYTE_TYPE bool has unrecognizable value\n");
+                        DSM_STATE = DSM_S_FATAL;
+                        printf("Encountered a FATAL ERROR - echoing serial bytes until termination\n");
                         fatal_error = true;
                         break;
                 }
@@ -461,7 +504,7 @@ void DSM_RX_TX::RX_TX()
                                 }
                                 else
                                 {
-                                    if (debug_medium)
+                                    if (debug_simple)
                                         printf("Switching to UNSAFE mode due to bad sync\n");
                                     safe_zone_syncs = 0;
                                     last_sync_dist = 0;
@@ -475,6 +518,8 @@ void DSM_RX_TX::RX_TX()
                             default: // *** BYTE_TYPE = not known ***
                                 if (debug_expert)
                                     printf("BYTE_TYPE bool has unrecognizable value\n");
+                                DSM_STATE = DSM_S_FATAL;
+                                printf("Encountered a FATAL ERROR - echoing serial bytes until termination\n");
                                 fatal_error = true; // This is really bad!
                                 break; // Break for BYTE_TYPE not known
                         }
@@ -501,6 +546,8 @@ void DSM_RX_TX::RX_TX()
                             default:
                                 if (debug_expert)
                                     printf("BYTE_TYPE bool has unrecognizable value\n");
+                                DSM_STATE = DSM_S_FATAL;
+                                printf("Encountered a FATAL ERROR - echoing serial bytes until termination\n");
                                 fatal_error = true;
                                 break; // Break for BYTE_TYPE not known
                         }
@@ -508,6 +555,8 @@ void DSM_RX_TX::RX_TX()
                     default:  // *** BYTE_TYPE = not known ***
                         if (debug_medium)
                             printf("PREAMBLE bool has unrecognizable value\n");
+                        DSM_STATE = DSM_S_FATAL;
+                        printf("Encountered a FATAL ERROR - echoing serial bytes until termination\n");
                         fatal_error = true; // This is really bad!
                         break; // Break for BYTE_TYPE not known
                 }
@@ -561,7 +610,7 @@ void DSM_RX_TX::RX_TX()
                         if (debug_errors)
                             printf("There have been %i errors\n",packet_errors);
                     }
-                    printf("Time last: %f \n", time_diff_last);
+                    //printf("Time last: %f \n", time_diff_last);
                     sync_value_expected = sync_value;
                     sync_value_expected_next = sync_value_expected + SYNC_INCREMENT;
                     if (debug_expert)
@@ -604,10 +653,16 @@ void DSM_RX_TX::RX_TX()
                 }
                 else if (UNSAFE_counter >= FATAL_SYNC_THRESHOLD*16)
                 {
+                    DSM_STATE = DSM_S_FATAL;
+                    printf("Encountered a FATAL ERROR - echoing serial bytes until termination\n");
                     fatal_error = true;
                 }
             }
             break; // Break for DSM_STATE UNSAFE
+        case DSM_S_FATAL: // *** FATAL mode ***
+            if(serialDataAvail(ser_handle))
+                serialPutchar(ser_handle,serialGetchar(ser_handle));
+            break;
         default:
             DSM_STATE = DSM_S_UNSAFE;
             break; // Break for DSM_STATE not known
