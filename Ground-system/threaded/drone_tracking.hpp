@@ -103,7 +103,7 @@ using namespace std;
 #define SAVE_FRAME_NUM          150           // Frame that is saved in frame_analysis
 #define FOCAL_LENGTH            757.1270      //From matlab. Can be calculated with: (PIXEL_WIDTH * MEASURED_DISTANCE)/MEASURED WIDTH;
 #define DRONE_SIZE              0.38          // The drone is 38 from arm tip to arm tip
-#define CAMERA_X_POSITION       540           // x position of the camera in the image
+#define CAMERA_X_POSITION       640           // x position of the camera in the image
 #define CAMERA_Y_POSITION       360           // y position of the camera in the image
 #define CAMERA_Z_POSITION       0             // z position of the camera in the image
 #define MAX_POSITION_CHANGE     1          // For safety the position can only change with this value from frame to frame
@@ -172,9 +172,9 @@ private: // Variables
   bool debug = false;
   bool debug_frame_num = true;
   int global_frame_counter = 0;
-  int start_skip_frames = 160;
+  int start_skip_frames = 0;
 
-  int frame_res_width = 1080;
+  int frame_res_width = 1280;
   int frame_res_height = 720;
 
  // show_frame variables
@@ -257,6 +257,9 @@ private: // Variables
   ofstream shape_data;
   ofstream log_file;
   bool log_transmitted_values = true;
+
+  vector<double> x_positions_pixel;
+  vector<double> y_positions_pixel;
 
 };
 
@@ -534,8 +537,8 @@ void drone_tracking::frame_analysis()
   } else {
     rectangle( frame_bgr, Point( x_mid-((x_base*(1+scale_factor)*rect_p_gain)/2), y_mid-((y_base*(1+scale_factor)*rect_p_gain)/2) ), Point( x_mid+((x_base*(1+scale_factor)*rect_p_gain)/2), y_mid+((y_base*(1+scale_factor)*rect_p_gain)/2)), Scalar( 0, 0, 255 ), +1, 4 );
   }
-  line( frame_bgr, Point( 540, 0 ), Point( 540, 720), Scalar( 255, 255, 255 ),  2, 8 );
-  line( frame_bgr, Point( 0, 360 ), Point( 1080, 360), Scalar( 255, 255, 255 ),  2, 8 );
+  line( frame_bgr, Point( x_mid, 0 ), Point( x_mid, frame_res_height), Scalar( 255, 255, 255 ),  2, 8 );
+  line( frame_bgr, Point( 0, y_mid ), Point( frame_res_width, y_mid), Scalar( 255, 255, 255 ),  2, 8 );
 
   if (log_diode_tracking) {
     if (leds.size() > 0) {
@@ -545,7 +548,6 @@ void drone_tracking::frame_analysis()
     }
   }
 
-  show_frame(window_names[0], window_show[0], frame_bgr); // Show original frame
   if (global_frame_counter == diode_save_frame_num and diode_save_frame)
     frame_save(frame_bgr, "frame_bgr_"+to_string(diode_save_frame_num));
 
@@ -571,6 +573,25 @@ void drone_tracking::frame_analysis()
 
   cout << "x: " << pos_x_m << ", y: " << pos_y_m << ", z: " << height << endl;
 
+  if (drone_detected) {
+    x_positions_pixel.push_back(position_from_shape.x);
+    y_positions_pixel.push_back(position_from_shape.y);
+  }
+  int end_colour_val = 0;
+  if (x_positions_pixel.size() > 100) {
+    end_colour_val = x_positions_pixel.size()-100;
+  }
+  if (x_positions_pixel.size()) {
+    int colour_count = 0;
+    for (size_t i = x_positions_pixel.size()-1; i > end_colour_val; i--) {
+      circle(frame_bgr, Point2f(x_positions_pixel.at(i),y_positions_pixel.at(i)), 4, Scalar(255-(colour_count)*2,(colour_count)*2,50*(colour_count)), -1, 8, 0);
+      colour_count++;
+    }
+  }
+  //circle(frame_bgr, Point2f(position_from_shape.x,position_from_shape.y), 4, color_green, -1, 8, 0);
+
+
+  show_frame(window_names[0], window_show[0], frame_bgr); // Show original frame
 
   // Put someting in the socket packet;
   pthread_mutex_lock(&mutex_sock_pack_out);
