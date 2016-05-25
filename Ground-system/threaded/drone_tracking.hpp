@@ -78,9 +78,10 @@ using namespace std;
 // Drone shape tracking
   // Load shape
 #define DATA_FILE_PATH      "shape_test_data.csv"
-#define SHAPE_IM_PATH       "src/shape_dummy.jpg" // Path to dummy shape template
-// #define SHAPE_IM_PATH       "src/shape_other_no_bg.png"   // Path to plywood shape template
-#define SHAPE_CONTOUR_INDEX 0               // Index for shape contour in shape_contours. 0 for dummy. 1 for plywood.
+#define LOG_FILE_PATH       "log_file.csv"
+// #define SHAPE_IM_PATH       "src/shape_dummy.jpg" // Path to dummy shape template
+#define SHAPE_IM_PATH       "src/shape_other_no_bg.png"   // Path to plywood shape template
+#define SHAPE_CONTOUR_INDEX 1               // Index for shape contour in shape_contours. 0 for dummy. 1 for plywood.
 
   // Erosion and dilation
 #define EROSION_TYPE        MORPH_ELLIPSE // From example in link in erode/dilate function: A filled ellipse
@@ -171,7 +172,7 @@ private: // Variables
   bool debug = false;
   bool debug_frame_num = true;
   int global_frame_counter = 0;
-  int start_skip_frames = 0;
+  int start_skip_frames = 160;
 
  // show_frame variables
   bool window_enable = true;
@@ -233,7 +234,7 @@ private: // Variables
   int dilation_type = DILATION_TYPE;
   int dilation_size = DILATION_SIZE;
   int dilate_iterations = DILATE_ITERATIONS;
-  int thresh_tresh = THRESH_THRESH;
+  int thresh_thresh = THRESH_THRESH;
   int shape_found_thresh = SHAPE_FOUND_THRESH;
   int minimum_drone_size = MINIMUM_DRONE_SIZE;
 
@@ -251,6 +252,8 @@ private: // Variables
   int prev_z = 0;
   int prev_orientation = 0;
   ofstream shape_data;
+  ofstream log_file;
+  bool log_transmitted_values = true;
 
 };
 
@@ -286,9 +289,16 @@ drone_tracking::drone_tracking(string filenameIn)
     shape_data.open(DATA_FILE_PATH);
     if(!shape_data.is_open())
     {
-      cout << "Unable to open data file" << endl;
+      cout << "Unable to open shape_data file" << endl;
       exit(1);
     }
+    log_file.open(LOG_FILE_PATH);
+    if(!log_file.is_open())
+    {
+      cout << "Unable to open log_data file" << endl;
+      exit(1);
+    }
+
     capture.set(CV_CAP_PROP_FRAME_WIDTH,1280);
     capture.set(CV_CAP_PROP_FRAME_HEIGHT,720);
     cout << "Capture is opened" << endl;
@@ -296,6 +306,10 @@ drone_tracking::drone_tracking(string filenameIn)
     if (log_diode_tracking) {
       data_diode_tracking.open (diode_tracking_filename);
       data_diode_tracking << "frame,drone_detected,detected_keypoints,diodes,orientation[deg],orientation_length_factor[pixel],orientation_run[1=top,2=bottom]\n";
+    }
+    if (log_transmitted_values)
+    {
+      log_file << "frame,shape_detected,diodes_detected,control,x,y,z,yaw,pitch,roll,delta_x,delta_y,delta_z,delta_yaw,delta_pitch,delta_roll,ch0,ch1,ch2,ch3,ch4,ch5,ch6,found_diodes,tresh_tresh,shape_found_tresh,minimum_drone_size" << endl;
     }
     for(;;) { // Processing
       capture >> frame_bgr;
@@ -313,6 +327,8 @@ drone_tracking::drone_tracking(string filenameIn)
     }
     if (log_diode_tracking)
       data_diode_tracking.close();
+    if (log_transmitted_values)
+      log_file.close();
     shape_data.close();
   } else { // Error capture is not opened
     cout << "No capture to open" << endl;
@@ -343,16 +359,16 @@ void drone_tracking::create_windows()
   // Shape detection
   window_names.push_back("Drone shape"); window_show.push_back(false); //Window 4 *
   window_names.push_back("Frame contours"); window_show.push_back(false); //Window 5
-  window_names.push_back("Tracking"); window_show.push_back(false); //Window 6 *
+  window_names.push_back("Tracking"); window_show.push_back(true); //Window 6 *
   window_names.push_back("Drone masked out, inside"); window_show.push_back(false); //Window 7 *
   window_names.push_back("Shape frame"); window_show.push_back(false); //Window 8
   window_names.push_back("Contours on shape frame"); window_show.push_back(false); //Window 9
   window_names.push_back("Contour0"); window_show.push_back(false); //Window 10
   window_names.push_back("Contour1"); window_show.push_back(false); //Window 11
-  window_names.push_back("Thresholded frame"); window_show.push_back(false); //Window 12
+  window_names.push_back("Thresholded frame"); window_show.push_back(true); //Window 12
   window_names.push_back("Erode"); window_show.push_back(false); //Window 13
   window_names.push_back("Dilate"); window_show.push_back(false); //Window 14
-  window_names.push_back("Settings"); window_show.push_back(false); //Window 15
+  window_names.push_back("Settings"); window_show.push_back(true); //Window 15
   window_names.push_back("Contourx"); window_show.push_back(false); // 16
   //window_names.push_back("Window N"); window_show.push_back(true); //Window N
   if (window_enable)
@@ -409,7 +425,7 @@ void drone_tracking::window_taskbar_create(int window_number)
     createTrackbar("dilation_type", window_names[window_number], &dilation_type, 2);
     createTrackbar("dilation_size", window_names[window_number], &dilation_size, 20);
     createTrackbar("dilate_iterations", window_names[window_number], &dilate_iterations, 20);
-    createTrackbar("thresh_thresh", window_names[window_number], &thresh_tresh, 255);
+    createTrackbar("thresh_thresh", window_names[window_number], &thresh_thresh, 255);
     createTrackbar("match treshold",window_names[window_number], &shape_found_thresh,200);
     createTrackbar("drone minimum size",window_names[window_number], &minimum_drone_size,2000);
   }
@@ -421,7 +437,7 @@ void drone_tracking::window_taskbar_create(int window_number)
   int dilation_type = DILATION_TYPE;
   int dilation_size = DILATION_SIZE;
   int dilate_iterations = DILATE_ITERATIONS;
-  int thresh_tresh = THRESH_THRESH;
+  int thresh_thresh = THRESH_THRESH;
 */
 }
 
@@ -454,6 +470,19 @@ void drone_tracking::frame_analysis()
 
   leds = diode_detection();
   cout << "Found diodes: " << leds.size() << endl;
+
+  // Hejgaard analysis
+  //locate_uav(frame_bgr);
+  //simple_shape_tracking();
+  xy_position position_from_shape;    // For position returned
+  double height;
+  Mat shape_frame;                    // Frame with only drone masked out
+  shape_frame = Mat::zeros( frame_bgr.size(), CV_8UC3 );
+
+  bool drone_detected = get_drone_position(frame_bgr,&position_from_shape, &height, &shape_frame); // Get the position
+  show_frame(window_names[4], window_show[4], shape_frame);
+
+  shape_data << frame_number << "," << drone_detected << "," << position_from_shape.x << "," << position_from_shape.y << endl;
   // Calculate orientation
   bool force_down = false;
   double scale_factor;
@@ -515,24 +544,10 @@ void drone_tracking::frame_analysis()
   if (global_frame_counter == diode_save_frame_num and diode_save_frame)
     frame_save(frame_bgr, "frame_bgr_"+to_string(diode_save_frame_num));
 
-
-  // Hejgaard analysis
-  //locate_uav(frame_bgr);
-  //simple_shape_tracking();
-  xy_position position_from_shape;    // For position returned
-  double height;
-  Mat shape_frame;                    // Frame with only drone masked out
-  shape_frame = Mat::zeros( frame_bgr.size(), CV_8UC3 );
-
-  bool drone_detected = get_drone_position(frame_bgr,&position_from_shape, &height, &shape_frame); // Get the position
-  show_frame(window_names[4], window_show[4], shape_frame);
-
-  shape_data << frame_number << "," << drone_detected << "," << position_from_shape.x << "," << position_from_shape.y << endl;
-
   int control = 0;
-  int pos_x_m = 0;
-  int pos_y_m = 0;
-  if(drone_detected && drone_detected2)
+  double pos_x_m = 0;
+  double pos_y_m = 0;
+  if(drone_detected)
   {
     pos_x_m = (height/FOCAL_LENGTH)*(position_from_shape.x+ CAMERA_X_POSITION);
     pos_y_m = (height/FOCAL_LENGTH)*(position_from_shape.y + CAMERA_Y_POSITION);
@@ -552,25 +567,44 @@ void drone_tracking::frame_analysis()
   // Put someting in the socket packet;
   pthread_mutex_lock(&mutex_sock_pack_out);
   sock_pack_out.field0 = control; // Control. 0: Not in frame, 1: In frame, 2: In frame and control
-  sock_pack_out.field1 = pos_x_m;   // x
-  sock_pack_out.field2 = pos_y_m;   // y
-  sock_pack_out.field3 = height;   // z
-  sock_pack_out.field4 = diode_drone.orientation;   // phi (yaw)
-  sock_pack_out.field5 = 0;   // theta (pitch)
-  sock_pack_out.field6 = 0;   // psi (roll)
-  sock_pack_out.field7 = 0;   // delta x
-  sock_pack_out.field8 = 0;   // delta y
-  sock_pack_out.field9 = 0;   // delta z
-  sock_pack_out.field10 = 0; // delta phi (delta roll)
-  sock_pack_out.field11 = 0; // delta theta (delta pitch)
-  sock_pack_out.field12 = 0; // delta psi (delta roll)
+  sock_pack_out.field1 = pos_x_m*1000;   // x
+  sock_pack_out.field2 = pos_y_m*1000;   // y
+  sock_pack_out.field3 = (int)(height*1000);   // z
+  sock_pack_out.field4 = diode_drone.orientation*1000;   // phi (yaw)
+  sock_pack_out.field5 = 0*1000;   // theta (pitch)
+  sock_pack_out.field6 = 0*1000;   // psi (roll)
+  sock_pack_out.field7 = 0*1000;   // delta x
+  sock_pack_out.field8 = 0*1000;   // delta y
+  sock_pack_out.field9 = 0*1000;   // delta z
+  sock_pack_out.field10 = 0*1000; // delta phi (delta roll)
+  sock_pack_out.field11 = 0*1000; // delta theta (delta pitch)
+  sock_pack_out.field12 = 0*1000; // delta psi (delta roll)
   sock_pack_out.field13 = 0; // Channel 0
   sock_pack_out.field14 = 0; // Channel 1
   sock_pack_out.field15 = 0; // Channel 2
   sock_pack_out.field16 = 0; // Channel 3
   sock_pack_out.field17 = 0; // Channel 4
   sock_pack_out.field18 = 0; // Channel 5
-  sock_pack_out.field19 = 0; // Channel 6
+  sock_pack_out.field19 = frame_number; // Channel 6
+  // Log all state and all transmitted values to file
+  if(log_transmitted_values)
+  {
+    log_file << frame_number << "," << control << "," << drone_detected << "," << drone_detected2 << "," <<
+    sock_pack_out.field0 << "," << sock_pack_out.field1 << "," <<
+    sock_pack_out.field2 << "," << sock_pack_out.field3 << "," <<
+    sock_pack_out.field4 << "," << sock_pack_out.field5 << "," <<
+    sock_pack_out.field6 << "," << sock_pack_out.field7 << "," <<
+    sock_pack_out.field8 << "," << sock_pack_out.field9 << "," <<
+    sock_pack_out.field10 << "," << sock_pack_out.field11 << "," <<
+    sock_pack_out.field12 << "," << sock_pack_out.field13 << "," <<
+    sock_pack_out.field14 << "," << sock_pack_out.field15 << "," <<
+    sock_pack_out.field16 << "," << sock_pack_out.field17 << "," <<
+    sock_pack_out.field18 << "," << sock_pack_out.field19 << "," <<
+    leds.size() << "," << thresh_thresh << "," << shape_found_thresh << "," <<
+    minimum_drone_size << endl;
+    cout << "Log written to file" << endl;
+  }
+
   pthread_mutex_unlock(&mutex_sock_pack_out);
 
 }
@@ -1074,7 +1108,8 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
     waitKey(wait_time);                         // Wait so visual debugging is possible
 
   bool debug = false;
-  bool show_result = false;
+  bool show_result_in_terminal = false;
+  bool show_result_windows = true;
 
   // Prepare the frame for tracking
   Mat src_frame_color, src_frame_gray, shape_masked;  // A frame for color and gray
@@ -1137,7 +1172,7 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
   {
     match_found = true;
     get_position(frame_contours[best_match_index], &position); //Get its position
-    if(show_result)
+    if(show_result_windows)
     {
       drawContours(src_frame_color,frame_contours,best_match_index,
         color_green,4,8,shape_hierarchy,0,Point(0,0));  // Draw the shape (drone) // 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness, 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
@@ -1149,7 +1184,7 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
       color_white,-1,8,shape_hierarchy,0,Point(0,0));   // Make a mask with the drone // Draw the shape (drone) // 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness (negative = filled out), 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
 
     *height_out = calc_height(frame_contours[best_match_index]);
-
+    cout << "Height: " << *height_out << endl;
     position_out->x=position.x;                     // Copy to return struct
     position_out->y=position.y;
     position_out->orientation=position.orientation;
@@ -1158,7 +1193,7 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
     shape_masked.copyTo(*frame_out); // Copy only the drone back to frame_out
 
 
-    if (show_result) {
+    if (show_result_in_terminal) {
       // Print information
       cout << "lowest_match_result = " << lowest_match_result << " x: "
         << position.x << " y: " << position.y  << " O: " << position.orientation
@@ -1166,12 +1201,12 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
     }
   }
   else    // No match is found
-    if (show_result) {
+    if (show_result_in_terminal) {
       cout << "lowest_match_result = INT_MAX -> no match \t frame: "
       << frame_number << endl;  // Print no match
     }
 
-  if(show_result)
+  if(show_result_windows)
   {
     //namedWindow("Tracking", WINDOW_FREERATIO);
     show_frame(window_names[6], window_show[6], src_frame_color); // Show the result
@@ -1267,7 +1302,7 @@ vector<vector<Point>> drone_tracking::get_contours(Mat src_in)
   vector<Vec4i> local_hierarchy;        // Hierarchy of contours
 
   // Threshold src and store result in src
-  threshold(src, src, thresh_tresh, THRESH_MAXVAL, THRESH_TYPE); // 1st aug: mat in, 2nd aug: mat out, 3rd aug: threshold, 4th aug: maximum value to assign when src(x,y)<= thresh, 5th aug: thresholding type (most are defined in top of file)
+  threshold(src, src, thresh_thresh, THRESH_MAXVAL, THRESH_TYPE); // 1st aug: mat in, 2nd aug: mat out, 3rd aug: threshold, 4th aug: maximum value to assign when src(x,y)<= thresh, 5th aug: thresholding type (most are defined in top of file)
 
   if(debug)
   {
@@ -1380,16 +1415,45 @@ double drone_tracking::calc_height(vector<Point> contour)
 *              D’ = (W x F) / P
 ******************************************************************************/
 {
+  Mat test_frame, test_frame2;
+  frame_bgr.copyTo(test_frame);
+  frame_bgr.copyTo(test_frame2);
   double largest_drone_size = 0;
-  for(int i = 0; i < contour.size(); i++)
+  Point p1, p2;
+
+  if (contour.size() > 0)
   {
-    for(int j = 0; j < contour.size(); i++)
+    for(int i = 0; i < contour.size(); i++)
     {
-      double drone_size = calc_dist(contour[i],contour[j]);
-      if(drone_size > largest_drone_size)
-        largest_drone_size = drone_size;
+      {
+      for(int j = 0; j < contour.size(); j++)
+      {
+        if(i!=j)
+          circle(test_frame2, Point2f(contour[i].x,contour[i].y), 4, color_red, -1, 8, 0);
+          circle(test_frame2, Point2f(contour[j].x,contour[j].y), 4, color_red, -1, 8, 0);
+          double drone_size = calc_dist(contour[i],contour[j]);
+          if(drone_size > largest_drone_size)
+          {
+            largest_drone_size = drone_size;
+            p1 = contour[i];
+            p2 = contour[j];
+          }
+        }
+      }
     }
   }
+  cout << "There are " << contour.size() << " contour points" << endl;
+  cout << "largest_drone_size: " << largest_drone_size << endl;
+
+  circle(test_frame, Point2f(p1.x,p1.y), 4, color_red, -1, 8, 0);
+  circle(test_frame, Point2f(p2.x,p2.y), 4, color_green, -1, 8, 0);
+
+  imshow("Points used", test_frame);
+  /*
+  for(int i; i < contour.size();i++)
+    circle(test_frame2, Point2f(contour[i].x,contour[i].y), 4, color_red, -1, 8, 0);
+  */
+  imshow("Points all", test_frame2);
   return (FOCAL_LENGTH * DRONE_SIZE)/largest_drone_size; // (FOCAL_LENGTH * ACTUAL_DRONE_SIZE)/MEASURED_DRONE_SIZE.
 }
 
