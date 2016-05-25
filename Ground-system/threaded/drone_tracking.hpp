@@ -576,6 +576,10 @@ void drone_tracking::frame_analysis()
   if (drone_detected) {
     x_positions_pixel.push_back(position_from_shape.x);
     y_positions_pixel.push_back(position_from_shape.y);
+    if (drone_detected2)
+        putText(frame_bgr, "x:"to_string(pos_x_m)+",y:"+to_string(pos_y_m)+",z:"+to_string(height)+",rot:"+to_string(diode_drone.orientation), Point2f(x_positions_pixel.at(i),y_positions_pixel.at(i)),
+    else
+        putText(frame_bgr, "x:"to_string(pos_x_m)+",y:"+to_string(pos_y_m)+",z:"+to_string(height), Point2f(x_positions_pixel.at(i),y_positions_pixel.at(i)),
   }
   int end_colour_val = 0;
   if (x_positions_pixel.size() > 100) {
@@ -588,6 +592,7 @@ void drone_tracking::frame_analysis()
       colour_count++;
     }
   }
+  FONT_HERSHEY_COMPLEX_SMALL, 2, cvScalar(0,0,255), 1, CV_AA);
   //circle(frame_bgr, Point2f(position_from_shape.x,position_from_shape.y), 4, color_green, -1, 8, 0);
 
 
