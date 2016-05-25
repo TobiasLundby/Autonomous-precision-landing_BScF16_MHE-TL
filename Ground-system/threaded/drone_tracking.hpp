@@ -174,6 +174,9 @@ private: // Variables
   int global_frame_counter = 0;
   int start_skip_frames = 160;
 
+  int frame_res_width = 1080;
+  int frame_res_height = 720;
+
  // show_frame variables
   bool window_enable = true;
   vector<string> window_names; // Holds the window names but no values can be added here, must be added in the method.
@@ -299,8 +302,8 @@ drone_tracking::drone_tracking(string filenameIn)
       exit(1);
     }
 
-    capture.set(CV_CAP_PROP_FRAME_WIDTH,1280);
-    capture.set(CV_CAP_PROP_FRAME_HEIGHT,720);
+    capture.set(CV_CAP_PROP_FRAME_WIDTH,frame_res_width);
+    capture.set(CV_CAP_PROP_FRAME_HEIGHT,frame_res_height);
     cout << "Capture is opened" << endl;
     create_windows();
     if (log_diode_tracking) {
@@ -490,8 +493,8 @@ void drone_tracking::frame_analysis()
   int drone_detected2 = 0;
   int diodes_inside = 0;
   double rect_p_gain = 1.10;
-  int x_mid = 1280/2;
-  int y_mid = 720/2;
+  int x_mid = frame_res_width/2;
+  int y_mid = frame_res_height/2;
   int x_base = 400;
   int y_base = 300;
   if (leds.size() > 0) {
@@ -531,6 +534,8 @@ void drone_tracking::frame_analysis()
   } else {
     rectangle( frame_bgr, Point( x_mid-((x_base*(1+scale_factor)*rect_p_gain)/2), y_mid-((y_base*(1+scale_factor)*rect_p_gain)/2) ), Point( x_mid+((x_base*(1+scale_factor)*rect_p_gain)/2), y_mid+((y_base*(1+scale_factor)*rect_p_gain)/2)), Scalar( 0, 0, 255 ), +1, 4 );
   }
+  line( frame_bgr, Point( 540, 0 ), Point( 540, 720), Scalar( 255, 255, 255 ),  2, 8 );
+  line( frame_bgr, Point( 0, 360 ), Point( 1080, 360), Scalar( 255, 255, 255 ),  2, 8 );
 
   if (log_diode_tracking) {
     if (leds.size() > 0) {
@@ -549,20 +554,23 @@ void drone_tracking::frame_analysis()
   double pos_y_m = 0;
   if(drone_detected)
   {
-    pos_x_m = (height/FOCAL_LENGTH)*(position_from_shape.x+ CAMERA_X_POSITION);
-    pos_y_m = (height/FOCAL_LENGTH)*(position_from_shape.y + CAMERA_Y_POSITION);
+    pos_x_m = (height/FOCAL_LENGTH)*(position_from_shape.x - CAMERA_X_POSITION);
+    pos_y_m = (height/FOCAL_LENGTH)*(position_from_shape.y - CAMERA_Y_POSITION);
     if( sqrt(pow(pos_x_m,2) - pow(prev_x,2)) <= MAX_POSITION_CHANGE &&
         sqrt(pow(pos_y_m,2) - pow(prev_y,2)) <= MAX_POSITION_CHANGE &&
         height <= MAX_HEIGHT_CHANGE &&
         sqrt(pow(diode_drone.orientation,2) - pow(prev_orientation,2)) <= MAX_ORIENTATION_CHANGE)
     {
-        control = 2;
+        control = 1;
     }
   }
   // Store values as prev
   prev_x = pos_x_m;
   prev_y = pos_y_m;
   prev_z = height;
+
+  cout << "x: " << pos_x_m << ", y: " << pos_y_m << ", z: " << height << endl;
+
 
   // Put someting in the socket packet;
   pthread_mutex_lock(&mutex_sock_pack_out);
@@ -1415,11 +1423,12 @@ double drone_tracking::calc_height(vector<Point> contour)
 *              D’ = (W x F) / P
 ******************************************************************************/
 {
-  Mat test_frame, test_frame2;
-  frame_bgr.copyTo(test_frame);
-  frame_bgr.copyTo(test_frame2);
+  //Mat test_frame, test_frame2;
+  //frame_bgr.copyTo(test_frame);
+  //frame_bgr.copyTo(test_frame2);
   double largest_drone_size = 0;
-  Point p1, p2;
+  double drone_size = 0;
+  //Point p1, p2;
 
   if (contour.size() > 0)
   {
@@ -1429,31 +1438,31 @@ double drone_tracking::calc_height(vector<Point> contour)
       for(int j = 0; j < contour.size(); j++)
       {
         if(i!=j)
-          circle(test_frame2, Point2f(contour[i].x,contour[i].y), 4, color_red, -1, 8, 0);
-          circle(test_frame2, Point2f(contour[j].x,contour[j].y), 4, color_red, -1, 8, 0);
-          double drone_size = calc_dist(contour[i],contour[j]);
+          //circle(test_frame2, Point2f(contour[i].x,contour[i].y), 4, color_red, -1, 8, 0);
+          //circle(test_frame2, Point2f(contour[j].x,contour[j].y), 4, color_red, -1, 8, 0);
+          drone_size = calc_dist(contour[i],contour[j]);
           if(drone_size > largest_drone_size)
           {
             largest_drone_size = drone_size;
-            p1 = contour[i];
-            p2 = contour[j];
+            //p1 = contour[i];
+            //p2 = contour[j];
           }
         }
       }
     }
   }
-  cout << "There are " << contour.size() << " contour points" << endl;
+  //cout << "There are " << contour.size() << " contour points" << endl;
   cout << "largest_drone_size: " << largest_drone_size << endl;
 
-  circle(test_frame, Point2f(p1.x,p1.y), 4, color_red, -1, 8, 0);
-  circle(test_frame, Point2f(p2.x,p2.y), 4, color_green, -1, 8, 0);
+  //circle(test_frame, Point2f(p1.x,p1.y), 4, color_red, -1, 8, 0);
+  //circle(test_frame, Point2f(p2.x,p2.y), 4, color_green, -1, 8, 0);
 
-  imshow("Points used", test_frame);
+  //imshow("Points used", test_frame);
   /*
   for(int i; i < contour.size();i++)
     circle(test_frame2, Point2f(contour[i].x,contour[i].y), 4, color_red, -1, 8, 0);
   */
-  imshow("Points all", test_frame2);
+  //imshow("Points all", test_frame2);
   return (FOCAL_LENGTH * DRONE_SIZE)/largest_drone_size; // (FOCAL_LENGTH * ACTUAL_DRONE_SIZE)/MEASURED_DRONE_SIZE.
 }
 
