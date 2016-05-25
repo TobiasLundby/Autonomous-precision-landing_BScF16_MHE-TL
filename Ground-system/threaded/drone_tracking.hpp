@@ -99,7 +99,15 @@ using namespace std;
 #define MINIMUM_DRONE_SIZE  500             // For discarding too small contours            // Value below is a match
 #define MAXIMUM_DRONE_SIZE  10000
  // For test
- #define SAVE_FRAME_NUM     150           // Frame that is saved in frame_analysis
+#define SAVE_FRAME_NUM          150           // Frame that is saved in frame_analysis
+#define FOCAL_LENGTH            757.1270      //From matlab. Can be calculated with: (PIXEL_WIDTH * MEASURED_DISTANCE)/MEASURED WIDTH;
+#define DRONE_SIZE              0.38          // The drone is 38 from arm tip to arm tip
+#define CAMERA_X_POSITION       540           // x position of the camera in the image
+#define CAMERA_Y_POSITION       360           // y position of the camera in the image
+#define CAMERA_Z_POSITION       0             // z position of the camera in the image
+#define MAX_POSITION_CHANGE     1          // For safety the position can only change with this value from frame to frame
+#define MAX_HEIGHT_CHANGE       2
+#define MAX_ORIENTATION_CHANGE  20        // For safety the orientation can only change with this value from frame to frame
 
 typedef struct xy_position{   // Struct for xy-position of drone
    double x;
@@ -117,7 +125,6 @@ typedef struct xy_position{   // Struct for xy-position of drone
     double orientation_length_factor;
     int orientation_run;
   } xyz_position;
-
 
 /*****************************   Class   *******************************/
 class drone_tracking
@@ -144,13 +151,14 @@ private: // Methods
 
   // Match shape methods
   //xy_position get_drone_position(Mat);
-  bool get_drone_position(Mat, xy_position *, Mat *);
+  bool get_drone_position(Mat, xy_position *, double *, Mat *);
   void load_shape_im();
   vector<vector<Point>> get_contours(Mat);
   Mat local_erode(Mat);
   Mat local_dilate(Mat);
   void get_position(vector<Point> contour, xy_position *);
-  //void handle_trackbars();
+  double calc_dist(Point,Point);
+  double calc_height(vector<Point>);
 
 private: // Variables
   string filename;
@@ -237,6 +245,11 @@ private: // Variables
   Scalar color_green = Scalar(0,255,0), color_red = Scalar(0,0,255);
   Scalar color_white = Scalar(255,255,255), color_black = Scalar(0,0,0);
 
+  // For test
+  int prev_x = 0;
+  int prev_y = 0;
+  int prev_z = 0;
+  int prev_orientation = 0;
   ofstream shape_data;
 
 };
@@ -466,7 +479,7 @@ void drone_tracking::frame_analysis()
     for (size_t i = 0; i < leds.size(); i++) {
       if ((leds[i].pt.x > x_mid-((x_base*(1+scale_factor)*rect_p_gain)/2) and leds[i].pt.x < x_mid+((x_base*(1+scale_factor)*rect_p_gain)/2)) and
       (leds[i].pt.y > y_mid-((y_base*(1+scale_factor)*rect_p_gain)/2) and leds[i].pt.y < y_mid+((y_base*(1+scale_factor)*rect_p_gain)/2))) {
-        cout << "led inside: " << i << endl;
+        //cout << "led inside: " << i << endl;
         diodes_inside++;
       }
     }
@@ -507,36 +520,57 @@ void drone_tracking::frame_analysis()
   //locate_uav(frame_bgr);
   //simple_shape_tracking();
   xy_position position_from_shape;    // For position returned
+  double height;
   Mat shape_frame;                    // Frame with only drone masked out
   shape_frame = Mat::zeros( frame_bgr.size(), CV_8UC3 );
 
-  bool drone_detected = get_drone_position(frame_bgr,&position_from_shape, &shape_frame); // Get the position
+  bool drone_detected = get_drone_position(frame_bgr,&position_from_shape, &height, &shape_frame); // Get the position
   show_frame(window_names[4], window_show[4], shape_frame);
 
   shape_data << frame_number << "," << drone_detected << "," << position_from_shape.x << "," << position_from_shape.y << endl;
 
+  int control = 0;
+  int pos_x_m = 0;
+  int pos_y_m = 0;
+  if(drone_detected && drone_detected2)
+  {
+    pos_x_m = (height/FOCAL_LENGTH)*(position_from_shape.x+ CAMERA_X_POSITION);
+    pos_y_m = (height/FOCAL_LENGTH)*(position_from_shape.y + CAMERA_Y_POSITION);
+    if( sqrt(pow(pos_x_m,2) - pow(prev_x,2)) <= MAX_POSITION_CHANGE &&
+        sqrt(pow(pos_y_m,2) - pow(prev_y,2)) <= MAX_POSITION_CHANGE &&
+        height <= MAX_HEIGHT_CHANGE &&
+        sqrt(pow(diode_drone.orientation,2) - pow(prev_orientation,2)) <= MAX_ORIENTATION_CHANGE)
+    {
+        control = 2;
+    }
+  }
+  // Store values as prev
+  prev_x = pos_x_m;
+  prev_y = pos_y_m;
+  prev_z = height;
+
   // Put someting in the socket packet;
   pthread_mutex_lock(&mutex_sock_pack_out);
-  sock_pack_out.field0 = force_down;
-  sock_pack_out.field1 = 1;
-  sock_pack_out.field2 = 2;
-  sock_pack_out.field3 = 3;
-  sock_pack_out.field4 = 4;
-  sock_pack_out.field5 = 5;
-  sock_pack_out.field6 = 6;
-  sock_pack_out.field7 = 7;
-  sock_pack_out.field8 = 8;
-  sock_pack_out.field9 = 9;
-  sock_pack_out.field10 = 10;
-  sock_pack_out.field11 = 11;
-  sock_pack_out.field12 = 12;
-  sock_pack_out.field13 = 13;
-  sock_pack_out.field14 = 14;
-  sock_pack_out.field15 = 15;
-  sock_pack_out.field16 = 16;
-  sock_pack_out.field17 = 17;
-  sock_pack_out.field18 = 18;
-  sock_pack_out.field19 = 19;
+  sock_pack_out.field0 = control; // Control. 0: Not in frame, 1: In frame, 2: In frame and control
+  sock_pack_out.field1 = pos_x_m;   // x
+  sock_pack_out.field2 = pos_y_m;   // y
+  sock_pack_out.field3 = height;   // z
+  sock_pack_out.field4 = diode_drone.orientation;   // phi (yaw)
+  sock_pack_out.field5 = 0;   // theta (pitch)
+  sock_pack_out.field6 = 0;   // psi (roll)
+  sock_pack_out.field7 = 0;   // delta x
+  sock_pack_out.field8 = 0;   // delta y
+  sock_pack_out.field9 = 0;   // delta z
+  sock_pack_out.field10 = 0; // delta phi (delta roll)
+  sock_pack_out.field11 = 0; // delta theta (delta pitch)
+  sock_pack_out.field12 = 0; // delta psi (delta roll)
+  sock_pack_out.field13 = 0; // Channel 0
+  sock_pack_out.field14 = 0; // Channel 1
+  sock_pack_out.field15 = 0; // Channel 2
+  sock_pack_out.field16 = 0; // Channel 3
+  sock_pack_out.field17 = 0; // Channel 4
+  sock_pack_out.field18 = 0; // Channel 5
+  sock_pack_out.field19 = 0; // Channel 6
   pthread_mutex_unlock(&mutex_sock_pack_out);
 
 }
@@ -710,7 +744,7 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
       in_mask_red.copyTo(frame_temp, mask_circles); // Copy in_mask_red to frame_temp but only the area marked in the mask_circles
       mean_of_frame = (mean(frame_temp)[0]/(pow(in_keypoints[i].size,2)*M_PI))*mean_multiply_factor; // Calculate the mean of the frame using an openCV function. Calculation is relative since it takes the size into account.
 
-      if (debug or true)
+      if (debug or false)
         cout << "Keypoint " << i << " has a mean value of " << mean_of_frame << endl;
 
       int color_threashold; // Used to hold the right color_threashold. Used to (almost) avoid the same code
@@ -922,9 +956,9 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
 
 double drone_tracking::calc_dist(KeyPoint point1, KeyPoint point2)
 /*****************************************************************************
-*   Input    :
-*   Output   :
-*   Function :
+*   Input    : Two opencv points
+*   Output   : Distance between points
+*   Function : Calculates the distance between the input points
 ******************************************************************************/
 {
   return sqrt(pow((point2.pt.x-point1.pt.x),2)+pow((point2.pt.y-point1.pt.y),2));
@@ -1024,7 +1058,7 @@ void drone_tracking::simple_shape_tracking()
 
 
 //xy_position drone_tracking::get_drone_position(Mat src_frame_in)
-bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_out, Mat *frame_out)
+bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_out, double *height_out, Mat *frame_out)
 /*****************************************************************************
 *   Input    : The current frame as a Mat
 *   Output   : Struct with position
@@ -1114,6 +1148,7 @@ bool drone_tracking::get_drone_position(Mat src_frame_in, xy_position *position_
     drawContours(*frame_out,frame_contours,best_match_index,
       color_white,-1,8,shape_hierarchy,0,Point(0,0));   // Make a mask with the drone // Draw the shape (drone) // 1st aug: mat to be drawed upon, 2nd aug: contours to be drawed, 3rd aug: index for contour (-1 is all), 4th aug: color as a Scalar, 5th aug: thickness (negative = filled out), 6th aug: line type (8 standard), 7th aug: hierarchy, 8th aug: maxlevel of hierarchy (0 is only the specified one), 9th aug: offset to shift contours (standard: don't shift Point(0,0))
 
+    *height_out = calc_height(frame_contours[best_match_index]);
 
     position_out->x=position.x;                     // Copy to return struct
     position_out->y=position.y;
@@ -1324,6 +1359,40 @@ void drone_tracking::get_position(vector<Point> contour, xy_position *pos)
   double orientation = 0.5 * atan(2 * moment.m11 / (moment.m20 - moment.m02));
   pos->orientation = (orientation / M_PI) * 180;
 }
+
+double drone_tracking::calc_dist(Point point1, Point point2)
+/*****************************************************************************
+*   Input    : Two opencv points.
+*   Output   : Distance between points.
+*   Function : Calculates the distance between the input points.
+******************************************************************************/
+{
+  return sqrt(pow((point2.x-point1.x),2)+pow((point2.y-point1.y),2));
+}
+
+double drone_tracking::calc_height(vector<Point> contour)
+/*****************************************************************************
+*   Input    : A contour.
+*   Output   : Distance (height of) to contour.
+*   Function : Calculates the height of the drone based on max distance between
+*              points in contour.
+*              The calculation is inspired from http://www.pyimagesearch.com/2015/01/19/find-distance-camera-objectmarker-using-python-opencv/
+*              D’ = (W x F) / P
+******************************************************************************/
+{
+  double largest_drone_size = 0;
+  for(int i = 0; i < contour.size(); i++)
+  {
+    for(int j = 0; j < contour.size(); i++)
+    {
+      double drone_size = calc_dist(contour[i],contour[j]);
+      if(drone_size > largest_drone_size)
+        largest_drone_size = drone_size;
+    }
+  }
+  return (FOCAL_LENGTH * DRONE_SIZE)/largest_drone_size; // (FOCAL_LENGTH * ACTUAL_DRONE_SIZE)/MEASURED_DRONE_SIZE.
+}
+
 
 /*
 void drone_tracking::handle_trackbars()

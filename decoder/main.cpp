@@ -33,7 +33,7 @@ int main(void) {
 	int low_byte_in  = 0x10;
 	cout << endl;
 	cout << "Please enter high byte (as hex): ";
-	cin >> hex >> high_bylte_in;
+	cin >> hex >> high_byte_in;
 	cout << "Please enter low byte (as hex): ";
 	cin >> hex >> low_byte_in;
 	cout << endl;
