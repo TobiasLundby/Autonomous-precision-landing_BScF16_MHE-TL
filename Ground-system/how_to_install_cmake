@@ -1,0 +1,3 @@
+Cmake is installed by typing: cmake .
+Compile the file by typing: make
+Run the file: ./APL_Drone_system [webcam/<path_to_movie>]
