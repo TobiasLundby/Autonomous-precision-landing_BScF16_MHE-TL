@@ -362,7 +362,7 @@ void main_func()
               ch2_off = p_controller(sock_pack_in.field8, sock_pack_in.field2, y_params); // Pitch
               ch0_off = p_controller(sock_pack_in.field9, sock_pack_in.field3, z_params); // Throttle
 
-              if (serial_con.get_in_channel_value(5) < CH5POS1 - CH5THR and serial_con.get_in_channel_value(5) > CH5POS1 + CH5THR) {
+              if (serial_con.get_in_channel_value(5) > CH5POS1 - CH5THR and serial_con.get_in_channel_value(5) < CH5POS1 + CH5THR) {
                   printf("Control");
                    if(sock_pack_in.field0 == 1)
                      serial_con.change_channel_offsets(ch0_off,ch1_off,ch2_off,ch3_off,ch4_off,ch5_off,ch6_off);
