@@ -143,10 +143,13 @@ int p_controller(double setpoint, double current, control_params &params)
 
 void socket_com()
 {
+    DSM_RX_TX time_test;
     ofstream mutex_logger;
     mutex_logger.open("mutex_logger_socket.txt");
     ofstream incoming_log;
     incoming_log.open("Incoming_log.csv");
+    ofstream socket_time_log;
+    socket_time_log.open("socket_time_log.csv");
     printf("Socket thread started\n");
     socket_client socket;   // Initialize socket connection
     socket_package sock_pack_in_local, sock_pack_out_local;
@@ -164,8 +167,14 @@ void socket_com()
         mutex_logger << "Socket unlocked mutex_socket_out_global" << endl;
       }
       // Do the communication
+
+      double start_time, stop_time, length;
+      start_time = time_test.get_time();
       socket.socket_send_frame(sock_pack_out_local);
       socket.socket_get_frame(&sock_pack_in_local);
+      stop_time = time_test.get_time();
+      length = stop_time - start_time;
+      socket_time_log << length << "," << endl;
 
       if(try_lock(mutex_socket_in_global,mutex_dummy1,mutex_dummy2) == -1)
       {

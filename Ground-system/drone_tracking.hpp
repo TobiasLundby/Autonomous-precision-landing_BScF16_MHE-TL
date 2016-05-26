@@ -96,7 +96,7 @@ using namespace std;
 #define THRESH_MAXVAL       255
 #define THRESH_TYPE         THRESH_BINARY_INV // If src(x,y)>TRESH_TRESH: src(x,y)=0 else THRESH_MAXVAL // Chosen because it is used in Stig Turner's code.
 
-#define SHAPE_FOUND_THRESH  45             // Value below is a match
+#define SHAPE_FOUND_THRESH  70             // Value below is a match
 #define MINIMUM_DRONE_SIZE  500             // For discarding too small contours            // Value below is a match
 #define MAXIMUM_DRONE_SIZE  10000
  // For test
@@ -375,7 +375,7 @@ void drone_tracking::create_windows()
   window_names.push_back("Contours on shape frame"); window_show.push_back(false); //Window 9
   window_names.push_back("Contour0"); window_show.push_back(false); //Window 10
   window_names.push_back("Contour1"); window_show.push_back(false); //Window 11
-  window_names.push_back("Thresholded frame"); window_show.push_back(false); //Window 12
+  window_names.push_back("Thresholded frame"); window_show.push_back(true); //Window 12
   window_names.push_back("Erode"); window_show.push_back(false); //Window 13
   window_names.push_back("Dilate"); window_show.push_back(false); //Window 14
   window_names.push_back("Settings"); window_show.push_back(true); //Window 15
@@ -478,7 +478,8 @@ void drone_tracking::frame_analysis()
   if (debug_frame_num)
     cout << endl << "Frame: " << global_frame_counter << endl;
 
-  leds = diode_detection();
+  //leds = diode_detection();
+
   cout << "Found diodes: " << leds.size() << endl;
 
   // Hejgaard analysis
@@ -562,13 +563,13 @@ void drone_tracking::frame_analysis()
   {
     pos_x_m = (height/FOCAL_LENGTH)*(position_from_shape.x - CAMERA_X_POSITION);
     pos_y_m = (height/FOCAL_LENGTH)*(position_from_shape.y - CAMERA_Y_POSITION);
-   if( sqrt(pow(pos_x_m,2) - pow(prev_x,2)) <= MAX_POSITION_CHANGE &&
-         sqrt(pow(pos_y_m,2) - pow(prev_y,2)) <= MAX_POSITION_CHANGE &&
-         height <= MAX_HEIGHT_CHANGE &&
-         sqrt(pow(diode_drone.orientation,2) - pow(prev_orientation,2)) <= MAX_ORIENTATION_CHANGE)
-     {
+  // if( sqrt(pow(pos_x_m,2) - pow(prev_x,2)) <= MAX_POSITION_CHANGE &&
+  //       sqrt(pow(pos_y_m,2) - pow(prev_y,2)) <= MAX_POSITION_CHANGE &&
+  //       height <= MAX_HEIGHT_CHANGE &&
+  //       sqrt(pow(diode_drone.orientation,2) - pow(prev_orientation,2)) <= MAX_ORIENTATION_CHANGE)
+  //   {
         control = 1;
-     }
+  //   }
   }
   // Store values as prev
   prev_x = pos_x_m;
@@ -613,7 +614,7 @@ void drone_tracking::frame_analysis()
   sock_pack_out.field6 = 0*1000;   // psi (roll)
   sock_pack_out.field7 = 0*1000;   // delta x
   sock_pack_out.field8 = 0*1000;   // delta y
-  sock_pack_out.field9 = 0*1000;   // delta z
+  sock_pack_out.field9 = 1.5*1000;   // delta z
   sock_pack_out.field10 = 0*1000; // delta phi (delta roll)
   sock_pack_out.field11 = 0*1000; // delta theta (delta pitch)
   sock_pack_out.field12 = 0*1000; // delta psi (delta roll)

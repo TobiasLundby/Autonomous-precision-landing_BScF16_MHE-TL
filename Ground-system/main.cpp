@@ -35,15 +35,21 @@ void *Socket_communication(void *threadid)
   cout << "Socket_communication! Thread ID, " << tid << endl;
 
   socket_server socket;   // Initialize socket connection
+  cout << "Server started" << endl;
   while(true)
   {
+    //cout << "Entering socket loop" << endl;
     // Do the communication
     pthread_mutex_lock(&mutex_sock_pack_in);
+    cout << "Socket: Locking mutex_sock_pack_in" << endl;
     socket.socket_get_frame(&sock_pack_in);
     pthread_mutex_unlock(&mutex_sock_pack_in);
+    cout << "Socket: Unlocking mutex_sock_pack_in" << endl;
     pthread_mutex_lock(&mutex_sock_pack_out);
+    cout << "Socket: Locking mutex_sock_pack_out" << endl;
     socket.socket_send_frame(sock_pack_out);
     pthread_mutex_unlock(&mutex_sock_pack_out);
+    cout << "Socket: Unlocking mutex_sock_pack_out" << endl;
   }
 
 
