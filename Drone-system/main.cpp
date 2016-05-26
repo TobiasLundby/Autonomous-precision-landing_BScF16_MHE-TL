@@ -113,7 +113,7 @@ int main(int argc,char* argv[])
 {
     ofstream data_logger;
     data_logger.open ("data_log.csv");
-    data_logger << "time,packet_number\n"; //,ground_sync_frame,MAIN_STATE,ch0_in,ch1_in,ch2_in,ch3_in,ch4_in,ch5_in,ch6_in,ch0_out,ch1_out,ch2_out,ch3_out,ch4_out,ch5_out,ch6_out,ch0_off,ch1_off,ch2_off,ch3_off,ch4_off,ch5_off,ch6_off,socket_x,socket_y,socket_z,socket_dx,socket_dy,socket_dz,pid_x_error,pid_y_error,pid_z_error,packet_errors\n";
+    data_logger << "time,packet_number,ground_sync_frame,MAIN_STATE,ch0_in,ch1_in,ch2_in,ch3_in,ch4_in,ch5_in,ch6_in,ch0_out,ch1_out,ch2_out,ch3_out,ch4_out,ch5_out,ch6_out,ch0_off,ch1_off,ch2_off,ch3_off,ch4_off,ch5_off,ch6_off,control,socket_x,socket_y,socket_z,socket_dx,socket_dy,socket_dz,pid_x_error,pid_y_error,pid_z_error,packet_errors\n";
     int MAIN_STATE = MAIN_S_INIT;
     int packet_number = 0;
     bool error = false;
@@ -177,13 +177,13 @@ int main(int argc,char* argv[])
     int ch6_off = 0;
 
     control_params x_params, y_params, z_params;
-    x_params.Kp = 0.001;
+    x_params.Kp = 0.05;
     x_params.min = -100; // defines the min control value
     x_params.max = 100;  // defines the max control value
-    y_params.Kp = 0.001;
+    y_params.Kp = 0.05;
     y_params.min = -100; // defines the min control value
     y_params.max = 100;  // defines the max control value
-    z_params.Kp = 0.001;
+    z_params.Kp = 0.05;
     z_params.min = -100; // defines the min control value
     z_params.max = 100;  // defines the max control value
 
@@ -301,10 +301,10 @@ int main(int argc,char* argv[])
         }
         serial_con.DSM_analyse(false); /* RX AND TX */
 
-        /*
+
         socket.socket_send_frame(sock_pack_out);
         socket.socket_get_frame(&sock_pack_in);
-        int int_in_factor = 1000;
+        int int_in_factor = 1;
         sock_pack_in.field1  = sock_pack_in.field1/int_in_factor; // x, drone pos
         sock_pack_in.field2  = sock_pack_in.field2/int_in_factor; // y, drone pos
         sock_pack_in.field3  = sock_pack_in.field3/int_in_factor; // z, drone pos
@@ -317,16 +317,16 @@ int main(int argc,char* argv[])
         sock_pack_in.field10 = sock_pack_in.field10/int_in_factor; // delta phi
         sock_pack_in.field11 = sock_pack_in.field11/int_in_factor; // delta theta
         sock_pack_in.field12 = sock_pack_in.field12/int_in_factor; // delta psi
-        */
+
 
 
         data_logger <<
-            serial_con.get_time() << "," << packet_number << "\n"; /* << "," << sock_pack_in.field19 << "," << MAIN_STATE << "," <<
+            serial_con.get_time() << "," << packet_number << "," << sock_pack_in.field19 << "," << MAIN_STATE << "," <<
             serial_con.get_in_channel_value(0) << "," << serial_con.get_in_channel_value(1) << "," << serial_con.get_in_channel_value(2) << "," << serial_con.get_in_channel_value(3) << "," << serial_con.get_in_channel_value(4) << "," << serial_con.get_in_channel_value(5) << "," << serial_con.get_in_channel_value(6) << "," <<
             serial_con.get_out_channel_value(0) << "," << serial_con.get_out_channel_value(1) << "," << serial_con.get_out_channel_value(2) << "," << serial_con.get_out_channel_value(3) << "," << serial_con.get_out_channel_value(4) << "," << serial_con.get_out_channel_value(5) << "," << serial_con.get_out_channel_value(6) << "," <<
             ch0_off << "," << ch1_off << "," << ch2_off << "," << ch3_off << "," << ch4_off << "," << ch5_off << "," << ch6_off << "," <<
-            sock_pack_in.field1 << "," << sock_pack_in.field2 << "," << sock_pack_in.field3 << "," << sock_pack_in.field7 << "," << sock_pack_in.field8 << "," << sock_pack_in.field9 << "," <<
-            x_params.error << "," << y_params.error << "," << z_params.error << "," << serial_con.get_packet_errors() << "\n"; */
+            sock_pack_in.field0 << "," << sock_pack_in.field1 << "," << sock_pack_in.field2 << "," << sock_pack_in.field3 << "," << sock_pack_in.field7 << "," << sock_pack_in.field8 << "," << sock_pack_in.field9 << "," <<
+            x_params.error << "," << y_params.error << "," << z_params.error << "," << serial_con.get_packet_errors() << "\n";
         packet_number++;
 
     }
