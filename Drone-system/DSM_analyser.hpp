@@ -15,7 +15,7 @@
 #include <errno.h>
 #include <stdbool.h>
 
-//#include <time.h>       /* time */
+#include <time.h>       /* time */
 #include <sys/time.h>   /* time */
 
 #include <wiringSerial.h>
@@ -35,9 +35,6 @@ typedef struct package{
 #define BAUD_RATE           115200
 #define HIGH                1
 #define LOW                 0
-#define MAX_ERROR_BETWEEN_PACKETS 5
-#define SYNC_BASE           0
-#define SYNC_INCREMENT      45
 #define SYNC_TOLERANCE      5
 #define SAFE_ZONE_THRESHOLD 45 // Approximate number of packets ins 10 seconds (packets come with a frequency of ~45,5Hz)
 #define RESET_SYNC_THRESHOLD 700
@@ -51,13 +48,11 @@ typedef struct package{
 #define CHANNEL6_DEFAULT    0
 #define CHANNEL_MAXVALUE    1700
 
-#define safe_mode_threshold 5 /* Amount of seconds before change from UNSAFE to SAFE mode */
+#define safe_mode_threshold 10 /* Amount of seconds before change from UNSAFE to SAFE mode */
 
 #define DSM_S_IDLE          0 /* Used while there is no bytes to recieve and changes values if needed */
 #define DSM_S_SAFE          1 /* Used if it has not made any errors in UNSAFE mode for safe_mode_threshold seconds */
 #define DSM_S_UNSAFE        2 /* Used when it is not certain that the frames are synced correctly */
-#define DSM_S_FATAL         3 /* Used when everything else fails */
-
 
 /*****************************   Class   *******************************/
 class DSM_RX_TX
@@ -73,26 +68,18 @@ public: // Methods
     void change_channel_offsets(int channel0_offset_value, int channel1_offset_value, int channel2_offset_value, int channel3_offset_value, int channel4_offset_value, int channel5_offset_value, int channel6_offset_value);
     int get_in_channel_value(int channel);
     int get_out_channel_value(int channel);
-    int get_packet_errors();
-    int get_DSM_state();
-    double get_time();
 private: // Methods
-    double currentTimeUs();
+    long long currentTimeUs();
     void decode_channel_value(package &p, int byte);
     void set_channel_value(package &p,int channel, int value);
     void decode_packet(package &p_in);
     void change_packet_values(package &p_in, package &p_out);
     void RX_TX();
-public: // Variables
 private: // Variables
-    bool debug_simple   = true;
+    bool debug_simple   = false;
     bool debug_medium   = false;
     bool debug_expert   = false;
-    bool debug_insane   = false;
     bool debug_packet   = false;
-    bool debug_errors   = true;
-    bool debug_time     = false;
-    bool debug_time_expert     = false;
 
     int DSM_STATE       = DSM_S_UNSAFE;
     bool safe_mode      = false; // Used when going from IDLE mode to either UNSAFE or SAFE
@@ -112,15 +99,13 @@ private: // Variables
     int success_bytes   = 0;
 
     int sync_value;
-    int sync_value_expected         = SYNC_BASE;
-    int sync_value_expected_next    = sync_value_expected + SYNC_INCREMENT;
+    int sync_value_expected         = 0;
+    int sync_value_expected_next    = sync_value_expected + 45;
     int safe_zone_syncs             = 0;
 
-    double time_byte         = 0;
-    double time_last_byte    = 0;
-    const double frame_timeout = 0.01; // micro seconds
-    double time_diff_current = 0;
-    double time_diff_last = 0;
+    long long time_byte         = 0;
+    long long time_last_byte    = 0;
+    const int frame_timeout     = 5000; // micro seconds 1ms=1000us
 
     int UNSAFE_syncs;
     int avail_bytes     = 0; // 0 since no avaliable bytes when starting up
@@ -134,8 +119,6 @@ private: // Variables
     int channel4_offset = 0;
     int channel5_offset = 0;
     int channel6_offset = 0;
-
-    int packet_errors = 0;
 
     int ser_handle; // The serial connection (file descriptor)
     package package_in, package_out;
@@ -205,25 +188,16 @@ DSM_RX_TX::DSM_RX_TX(char* port)
         printf("RX and TX ready to start in IDLE mode (safe_mode is false)\n");
 }
 
-double DSM_RX_TX::currentTimeUs()
+long long DSM_RX_TX::currentTimeUs()
 /*****************************************************************************
 *   Input    : None
 *   Output   : Time in micro seconds
 *   Function : Returns the current time in us
 ******************************************************************************/
 {
-    //timeval current;
-    //gettimeofday(&current, 0);
-    //struct timespec current;
-    //clock_gettime(CLOCK_REALTIME, &current);
-    //return (long long)current.tv_sec * 1000000000L + current.tv_nsec;
-    //printf("time returned is %li \n", (long)current.tv_sec * 1000000L + current.tv_usec);
-    //return (long)current.tv_sec * 1000000L + current.tv_usec;
-    struct timeval tim;
-    gettimeofday(&tim, NULL);
-    if (debug_time_expert)
-        printf("time returned is %f \n", (double)tim.tv_sec+(tim.tv_usec/1000000.0));
-    return (double)tim.tv_sec+(tim.tv_usec/1000000.0);
+    timeval current;
+    gettimeofday(&current, 0);
+    return (long long)current.tv_sec * 1000000L + current.tv_usec;
 }
 
 void DSM_RX_TX::decode_channel_value(package &p,int byte)
@@ -313,36 +287,6 @@ int DSM_RX_TX::get_out_channel_value(int channel)
     return package_out.channel_value[channel];
 }
 
-int DSM_RX_TX::get_packet_errors()
-/*****************************************************************************
-*   Input    : none
-*   Output   : Packet errors
-*   Function : Returns the number of packet errors
-******************************************************************************/
-{
-    return packet_errors;
-}
-
-int DSM_RX_TX::get_DSM_state()
-/*****************************************************************************
-*   Input    : none
-*   Output   : DSM state
-*   Function : Returns the DSM state
-******************************************************************************/
-{
-    return DSM_STATE;
-}
-
-double DSM_RX_TX::get_time()
-/*****************************************************************************
-*   Input    : none
-*   Output   : time
-*   Function : Returns the time
-******************************************************************************/
-{
-    return currentTimeUs();
-}
-
 bool DSM_RX_TX::DSM_analyse(bool loop)
 /*****************************************************************************
 *   Input    : If loop=true then it loops otherwise it runs once.
@@ -352,10 +296,6 @@ bool DSM_RX_TX::DSM_analyse(bool loop)
 {
     if (loop)
     {
-        while(true)
-            RX_TX();
-
-        /* Below have been replaced with the proper fatal error state
         while(!fatal_error)
             RX_TX();
 
@@ -363,8 +303,7 @@ bool DSM_RX_TX::DSM_analyse(bool loop)
         while (true)
             if(serialDataAvail(ser_handle))
                 serialPutchar(ser_handle,serialGetchar(ser_handle));
-        */
-        return true;
+        return false;
     }
     else
     {
@@ -411,10 +350,6 @@ void DSM_RX_TX::RX_TX()
                 old_byte_in = byte_in;
                 time_last_byte = time_byte;
                 time_byte = currentTimeUs();
-                time_diff_last = time_diff_current;
-                time_diff_current = time_byte - time_last_byte;
-                if (debug_time)
-                    printf("Time between bytes are %f (calculated from %f and %f) and timeout is %f \n", time_byte - time_last_byte, time_byte, time_last_byte, frame_timeout);
                 byte_in = serialGetchar(ser_handle); //RX byte
                 byte_counter++;
                 success_bytes++;
@@ -435,8 +370,6 @@ void DSM_RX_TX::RX_TX()
                     default:
                         if (debug_expert)
                             printf("BYTE_TYPE bool has unrecognizable value\n");
-                        DSM_STATE = DSM_S_FATAL;
-                        printf("Encountered a FATAL ERROR - echoing serial bytes until termination\n");
                         fatal_error = true;
                         break;
                 }
@@ -448,22 +381,6 @@ void DSM_RX_TX::RX_TX()
                             case  HIGH: // *** BYTE_TYPE = HIGH ***
                                 package_in.byte_H[0] = byte_in;
                                 BYTE_TYPE = LOW;
-
-                                sync_value = (256*old_byte_in)+byte_in;
-                                if (debug_insane) {
-                                    printf("Value is: %i \n", sync_value);
-                                    printf("Expected value: %i \n", sync_value == sync_value_expected);
-                                    printf("Expected value but varying low: %i \n", sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS);
-                                    printf("Expected value but varying high: %i \n", sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS);
-                                    printf("Next value low: %i \n", (sync_value_expected_next - SYNC_TOLERANCE) < sync_value);
-                                    printf("Next value high: %i \n", sync_value < (sync_value_expected_next + SYNC_TOLERANCE));
-                                    printf("Expected value varying combined: %i \n", (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS
-                                            and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS));
-                                    printf("Expected value varying future combined: %i \n", (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
-                                        and (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))));
-                                    printf("Time last: %i \n", time_diff_last > frame_timeout);
-                                    printf("Time: %i \n\n", time_diff_current > frame_timeout);
-                                }
                                 break; // Break for BYTE_TYPE HIGH
                             case  LOW: // *** BYTE_TYPE = LOW ***
                                 package_in.byte_L[0] = byte_in;
@@ -471,40 +388,16 @@ void DSM_RX_TX::RX_TX()
                                 sync_value = (256*old_byte_in)+byte_in;
                                 //printf("******* Preamble ********* Sync_val: %i\n",sync_value);
 
-                                if (debug_insane) {
-                                    printf("Value is: %i \n", sync_value);
-                                    printf("Expected value: %i \n", sync_value == sync_value_expected);
-                                    printf("Expected value but varying low: %i \n", sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS);
-                                    printf("Expected value but varying high: %i \n", sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS);
-                                    printf("Next value low: %i \n", (sync_value_expected_next - SYNC_TOLERANCE) < sync_value);
-                                    printf("Next value high: %i \n", sync_value < (sync_value_expected_next + SYNC_TOLERANCE));
-                                    printf("Expected value varying combined: %i \n", (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS
-                                            and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS));
-                                    printf("Expected value varying future combined: %i \n", (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
-                                        and (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))));
-                                    printf("Time last: %i \n", time_diff_last > frame_timeout);
-                                    printf("Time: %i \n\n", time_diff_current > frame_timeout);
-                                }
-
-                                if(((sync_value == sync_value_expected
-                                    or (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS
-                                        and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS))
-                                    or (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
-                                        and (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))))
-                                    and (time_diff_last > frame_timeout))
+                                if(sync_value == sync_value_expected
+                                    || (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
+                                    && (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))))
                                 {
-                                    if ((sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS) and sync_value != sync_value_expected)
-                                    {
-                                        packet_errors += sync_value - sync_value_expected;
-                                        if (debug_errors)
-                                            printf("There have been %i errors\n",packet_errors);
-                                    }
                                    sync_value_expected = sync_value;
-                                   sync_value_expected_next = sync_value + SYNC_INCREMENT;
+                                   sync_value_expected_next = sync_value + 45;
                                 }
                                 else
                                 {
-                                    if (debug_simple)
+                                    if (debug_medium)
                                         printf("Switching to UNSAFE mode due to bad sync\n");
                                     safe_zone_syncs = 0;
                                     last_sync_dist = 0;
@@ -518,8 +411,6 @@ void DSM_RX_TX::RX_TX()
                             default: // *** BYTE_TYPE = not known ***
                                 if (debug_expert)
                                     printf("BYTE_TYPE bool has unrecognizable value\n");
-                                DSM_STATE = DSM_S_FATAL;
-                                printf("Encountered a FATAL ERROR - echoing serial bytes until termination\n");
                                 fatal_error = true; // This is really bad!
                                 break; // Break for BYTE_TYPE not known
                         }
@@ -546,8 +437,6 @@ void DSM_RX_TX::RX_TX()
                             default:
                                 if (debug_expert)
                                     printf("BYTE_TYPE bool has unrecognizable value\n");
-                                DSM_STATE = DSM_S_FATAL;
-                                printf("Encountered a FATAL ERROR - echoing serial bytes until termination\n");
                                 fatal_error = true;
                                 break; // Break for BYTE_TYPE not known
                         }
@@ -555,8 +444,6 @@ void DSM_RX_TX::RX_TX()
                     default:  // *** BYTE_TYPE = not known ***
                         if (debug_medium)
                             printf("PREAMBLE bool has unrecognizable value\n");
-                        DSM_STATE = DSM_S_FATAL;
-                        printf("Encountered a FATAL ERROR - echoing serial bytes until termination\n");
                         fatal_error = true; // This is really bad!
                         break; // Break for BYTE_TYPE not known
                 }
@@ -574,45 +461,17 @@ void DSM_RX_TX::RX_TX()
                 old_byte_in = byte_in;
                 time_last_byte = time_byte;
                 time_byte = currentTimeUs();
-                time_diff_last = time_diff_current;
-                time_diff_current = time_byte - time_last_byte;
-                if (debug_time)
-                    printf("Time between bytes are %f (calculated from %f and %f) and timeout is %f \n", time_byte - time_last_byte, time_byte, time_last_byte, frame_timeout);
                 byte_in = serialGetchar(ser_handle); //RX byte
                 serialPutchar(ser_handle,byte_in); //TX byte
 
                 sync_value = (256*old_byte_in)+byte_in;
-                if (debug_insane and false) {
-                    printf("Value is: %i \n", sync_value);
-                    printf("Expected value: %i \n", sync_value == sync_value_expected);
-                    printf("Expected value but varying low: %i \n", sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS);
-                    printf("Expected value but varying high: %i \n", sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS);
-                    printf("Next value low: %i \n", (sync_value_expected_next - SYNC_TOLERANCE) < sync_value);
-                    printf("Next value high: %i \n", sync_value < (sync_value_expected_next + SYNC_TOLERANCE));
-                    printf("Expected value varying combined: %i \n", (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS
-                            and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS));
-                    printf("Expected value varying future combined: %i \n", (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
-                        and (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))));
-                    printf("Time last: %i \n", time_diff_last > frame_timeout);
-                    printf("Time: %i \n\n", time_diff_current > frame_timeout);
-                }
-
-                if(((sync_value == sync_value_expected
-                    or (sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS
-                        and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS))
-                    or (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value)
-                        and (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))))
-                    and (time_diff_last > frame_timeout))
+                if(sync_value == sync_value_expected ||
+                    (((sync_value_expected_next - SYNC_TOLERANCE) < sync_value) &&
+                       (sync_value < (sync_value_expected_next + SYNC_TOLERANCE))) &&
+                    ((time_byte - time_last_byte) > frame_timeout))
                 {
-                    if ((sync_value >= sync_value_expected - MAX_ERROR_BETWEEN_PACKETS and sync_value <= sync_value_expected + MAX_ERROR_BETWEEN_PACKETS) and sync_value != sync_value_expected)
-                    {
-                        packet_errors += sync_value - sync_value_expected;
-                        if (debug_errors)
-                            printf("There have been %i errors\n",packet_errors);
-                    }
-                    //printf("Time last: %f \n", time_diff_last);
                     sync_value_expected = sync_value;
-                    sync_value_expected_next = sync_value_expected + SYNC_INCREMENT;
+                    sync_value_expected_next = sync_value + 45;
                     if (debug_expert)
                         printf("Last_sync_dist: %i\n",last_sync_dist);
                     if((safe_zone_syncs > 0 && last_sync_dist == 15) || safe_zone_syncs == 0)
@@ -623,16 +482,13 @@ void DSM_RX_TX::RX_TX()
                             printf("Safe_zone_zyncs: %i Sync_value: %i Sync_value_expected: %i Sync_value_expected_next: %i \n",safe_zone_syncs,sync_value,sync_value_expected,sync_value_expected_next);
                     }
                     else if(safe_zone_syncs>0)
-                    {
                         safe_zone_syncs--;
-                        last_sync_dist = 0;
-                    }
                 }
                 else
                     last_sync_dist++;
 
                 //DETERMINE WHEATHER OR NOT THE THING BETEETH IS VALID
-                if(safe_zone_syncs >= SAFE_ZONE_THRESHOLD && last_sync_dist == 14)
+                if(safe_zone_syncs == SAFE_ZONE_THRESHOLD && last_sync_dist == 14)
                 {
                     byte_counter = 0;
                     PREAMBLE = true;
@@ -648,21 +504,15 @@ void DSM_RX_TX::RX_TX()
                     if (debug_medium) {
                         printf("The expected sync value has been reset\n");
                     }
-                    sync_value_expected = SYNC_BASE;
-                    sync_value_expected_next = sync_value + SYNC_INCREMENT;
+                    sync_value_expected = 0;
+                    sync_value_expected_next = sync_value + 45;
                 }
                 else if (UNSAFE_counter >= FATAL_SYNC_THRESHOLD*16)
                 {
-                    DSM_STATE = DSM_S_FATAL;
-                    printf("Encountered a FATAL ERROR - echoing serial bytes until termination\n");
                     fatal_error = true;
                 }
             }
             break; // Break for DSM_STATE UNSAFE
-        case DSM_S_FATAL: // *** FATAL mode ***
-            if(serialDataAvail(ser_handle))
-                serialPutchar(ser_handle,serialGetchar(ser_handle));
-            break;
         default:
             DSM_STATE = DSM_S_UNSAFE;
             break; // Break for DSM_STATE not known
