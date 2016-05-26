@@ -1,9 +1,9 @@
 CC=g++ #Compiler
-CFLAGS= -c -std=c++11 -fPIE -lrt -pthread #-g #Compiler Flags #-Ofast
+CFLAGS= -c -std=c++11 -fPIE -lrt #-g #Compiler Flags #-Ofast
 DEFINES=-DENABLE_DELETE
 INCPATH=
 
-LDFLAGS=-lwiringPi #Linker options
+LDFLAGS=-lwiringPi -pthread #Linker options
 
 SOURCES= main.cpp  $(MOCFILES) #cpp files
 

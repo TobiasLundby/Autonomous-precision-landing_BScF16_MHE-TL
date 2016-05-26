@@ -162,6 +162,10 @@ private: // Methods
   double calc_height(vector<Point>);
 
 private: // Variables
+  int test_val = 0; // REMOVE THIS AT SOME POINT
+
+
+
   string filename;
   Mat frame_bgr;
   VideoCapture capture;
@@ -356,9 +360,9 @@ void drone_tracking::create_windows()
   window_names.push_back("Input stream"); window_show.push_back(true); //Window 0 *
 
   // Diode detection
-  window_names.push_back("Recognized LEDs"); window_show.push_back(true); //Window 1 *
-  window_names.push_back("Color mask"); window_show.push_back(true); //Window 2 *
-  window_names.push_back("Color seperation frame"); window_show.push_back(true); //Window 3 *
+  window_names.push_back("Recognized LEDs"); window_show.push_back(false); //Window 1 *
+  window_names.push_back("Color mask"); window_show.push_back(false); //Window 2 *
+  window_names.push_back("Color seperation frame"); window_show.push_back(false); //Window 3 *
   //window_names.push_back("Other2"); window_show.push_back(true);//Window 4
   //window_names.push_back("Other3"); window_show.push_back(true);//Window 5
 
@@ -371,7 +375,7 @@ void drone_tracking::create_windows()
   window_names.push_back("Contours on shape frame"); window_show.push_back(false); //Window 9
   window_names.push_back("Contour0"); window_show.push_back(false); //Window 10
   window_names.push_back("Contour1"); window_show.push_back(false); //Window 11
-  window_names.push_back("Thresholded frame"); window_show.push_back(true); //Window 12
+  window_names.push_back("Thresholded frame"); window_show.push_back(false); //Window 12
   window_names.push_back("Erode"); window_show.push_back(false); //Window 13
   window_names.push_back("Dilate"); window_show.push_back(false); //Window 14
   window_names.push_back("Settings"); window_show.push_back(true); //Window 15
@@ -558,13 +562,13 @@ void drone_tracking::frame_analysis()
   {
     pos_x_m = (height/FOCAL_LENGTH)*(position_from_shape.x - CAMERA_X_POSITION);
     pos_y_m = (height/FOCAL_LENGTH)*(position_from_shape.y - CAMERA_Y_POSITION);
-    if( sqrt(pow(pos_x_m,2) - pow(prev_x,2)) <= MAX_POSITION_CHANGE &&
-        sqrt(pow(pos_y_m,2) - pow(prev_y,2)) <= MAX_POSITION_CHANGE &&
-        height <= MAX_HEIGHT_CHANGE &&
-        sqrt(pow(diode_drone.orientation,2) - pow(prev_orientation,2)) <= MAX_ORIENTATION_CHANGE)
-    {
+   if( sqrt(pow(pos_x_m,2) - pow(prev_x,2)) <= MAX_POSITION_CHANGE &&
+         sqrt(pow(pos_y_m,2) - pow(prev_y,2)) <= MAX_POSITION_CHANGE &&
+         height <= MAX_HEIGHT_CHANGE &&
+         sqrt(pow(diode_drone.orientation,2) - pow(prev_orientation,2)) <= MAX_ORIENTATION_CHANGE)
+     {
         control = 1;
-    }
+     }
   }
   // Store values as prev
   prev_x = pos_x_m;
@@ -577,9 +581,9 @@ void drone_tracking::frame_analysis()
     x_positions_pixel.push_back(position_from_shape.x);
     y_positions_pixel.push_back(position_from_shape.y);
     if (drone_detected2)
-        putText(frame_bgr, "x:"to_string(pos_x_m)+",y:"+to_string(pos_y_m)+",z:"+to_string(height)+",rot:"+to_string(diode_drone.orientation), Point2f(x_positions_pixel.at(i),y_positions_pixel.at(i)),
+        putText(frame_bgr, "x:"+to_string(pos_x_m)+",y:"+to_string(pos_y_m)+",z:"+to_string(height)+",rot:"+to_string(diode_drone.orientation), Point2f(0,700), FONT_HERSHEY_COMPLEX_SMALL, 2, cvScalar(0,0,255), 1, CV_AA);
     else
-        putText(frame_bgr, "x:"to_string(pos_x_m)+",y:"+to_string(pos_y_m)+",z:"+to_string(height), Point2f(x_positions_pixel.at(i),y_positions_pixel.at(i)),
+        putText(frame_bgr, "x:"+to_string(pos_x_m)+",y:"+to_string(pos_y_m)+",z:"+to_string(height), Point2f(0,700), FONT_HERSHEY_COMPLEX_SMALL, 2, cvScalar(0,0,255), 1, CV_AA);
   }
   int end_colour_val = 0;
   if (x_positions_pixel.size() > 100) {
@@ -592,19 +596,19 @@ void drone_tracking::frame_analysis()
       colour_count++;
     }
   }
-  FONT_HERSHEY_COMPLEX_SMALL, 2, cvScalar(0,0,255), 1, CV_AA);
   //circle(frame_bgr, Point2f(position_from_shape.x,position_from_shape.y), 4, color_green, -1, 8, 0);
 
 
   show_frame(window_names[0], window_show[0], frame_bgr); // Show original frame
 
+  test_val++;
   // Put someting in the socket packet;
   pthread_mutex_lock(&mutex_sock_pack_out);
   sock_pack_out.field0 = control; // Control. 0: Not in frame, 1: In frame, 2: In frame and control
-  sock_pack_out.field1 = pos_x_m*1000;   // x
-  sock_pack_out.field2 = pos_y_m*1000;   // y
+  sock_pack_out.field1 = (int)(pos_x_m*1000);   // x
+  sock_pack_out.field2 = (int)(pos_y_m*1000);   // y
   sock_pack_out.field3 = (int)(height*1000);   // z
-  sock_pack_out.field4 = diode_drone.orientation*1000;   // phi (yaw)
+  sock_pack_out.field4 = (int)diode_drone.orientation*1000;   // phi (yaw)
   sock_pack_out.field5 = 0*1000;   // theta (pitch)
   sock_pack_out.field6 = 0*1000;   // psi (roll)
   sock_pack_out.field7 = 0*1000;   // delta x
@@ -619,11 +623,11 @@ void drone_tracking::frame_analysis()
   sock_pack_out.field16 = 0; // Channel 3
   sock_pack_out.field17 = 0; // Channel 4
   sock_pack_out.field18 = 0; // Channel 5
-  sock_pack_out.field19 = frame_number; // Channel 6
+  sock_pack_out.field19 = global_frame_counter; // Channel 6
   // Log all state and all transmitted values to file
   if(log_transmitted_values)
   {
-    log_file << frame_number << "," << control << "," << drone_detected << "," << drone_detected2 << "," <<
+    log_file << global_frame_counter << "," << control << "," << drone_detected << "," << drone_detected2 << "," <<
     sock_pack_out.field0 << "," << sock_pack_out.field1 << "," <<
     sock_pack_out.field2 << "," << sock_pack_out.field3 << "," <<
     sock_pack_out.field4 << "," << sock_pack_out.field5 << "," <<
