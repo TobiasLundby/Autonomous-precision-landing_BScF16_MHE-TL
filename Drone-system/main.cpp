@@ -282,13 +282,16 @@ void main_func()
   int ch6_off = 0;
 
   control_params x_params, y_params, z_params;
-  x_params.Kp = 0.05;
+  x_params.Kp = 0.13;
+  x_params.Kd = 0.02;
   x_params.min = -100; // defines the min control value
   x_params.max = 100;  // defines the max control value
-  y_params.Kp = 0.05;
+  y_params.Kp = 0.13;
+  y_params.Kd = 0.02;
   y_params.min = -100; // defines the min control value
   y_params.max = 100;  // defines the max control value
-  z_params.Kp = 0.05;
+  z_params.Kp = 0.13;
+  z_params.Kd = 0.02;
   z_params.min = -100; // defines the min control value
   z_params.max = 100;  // defines the max control value
 
@@ -362,9 +365,9 @@ void main_func()
               ch2_off = p_controller(sock_pack_in.field8, sock_pack_in.field2, y_params); // Pitch
               ch0_off = p_controller(sock_pack_in.field9, sock_pack_in.field3, z_params); // Throttle
 
-              if (serial_con.get_in_channel_value(5) < CH5POS1 - CH5THR and serial_con.get_in_channel_value(5) > CH5POS1 + CH5THR) {
-                  printf("Control");
-                   if(sock_pack_in.field0 == 1)
+              //if (serial_con.get_in_channel_value(5) < CH5POS1 - CH5THR and serial_con.get_in_channel_value(5) > CH5POS1 + CH5THR) {
+                  //printf("Control");
+              if(sock_pack_in.field0 == 1) {
                      serial_con.change_channel_offsets(ch0_off,ch1_off,ch2_off,ch3_off,ch4_off,ch5_off,ch6_off);
               } else {
                   serial_con.change_channel_offsets(0,0,0,0,0,0,0);
