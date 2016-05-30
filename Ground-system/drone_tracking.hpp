@@ -171,8 +171,8 @@ private: // Variables
   VideoCapture capture;
 
  // General variables
-  bool enable_wait = false;
-  int wait_time_ms = 50;
+  bool enable_wait = true;
+  int wait_time_ms = 160;
   bool debug = false;
   bool debug_frame_num = true;
   int global_frame_counter = 0;
@@ -319,7 +319,7 @@ drone_tracking::drone_tracking(string filenameIn)
     }
     if (log_transmitted_values)
     {
-      log_file << "frame,shape_detected,diodes_detected,control,x,y,z,yaw,pitch,roll,delta_x,delta_y,delta_z,delta_yaw,delta_pitch,delta_roll,ch0,ch1,ch2,ch3,ch4,ch5,ch6,found_diodes,tresh_tresh,shape_found_tresh,minimum_drone_size" << endl;
+      log_file << "frame,control,shape_detected,diodes_detected,control,x,y,z,yaw,pitch,roll,delta_x,delta_y,delta_z,delta_yaw,delta_pitch,delta_roll,ch0,ch1,ch2,ch3,ch4,ch5,ch6,found_diodes,tresh_tresh,shape_found_tresh,minimum_drone_size" << endl;
     }
     for(;;) { // Processing
       capture >> frame_bgr;
@@ -378,7 +378,7 @@ void drone_tracking::create_windows()
   window_names.push_back("Thresholded frame"); window_show.push_back(false); //Window 12
   window_names.push_back("Erode"); window_show.push_back(false); //Window 13
   window_names.push_back("Dilate"); window_show.push_back(false); //Window 14
-  window_names.push_back("Settings"); window_show.push_back(true); //Window 15
+  window_names.push_back("Settings"); window_show.push_back(false); //Window 15
   window_names.push_back("Contourx"); window_show.push_back(false); // 16
   //window_names.push_back("Window N"); window_show.push_back(true); //Window N
   if (window_enable)
@@ -478,8 +478,8 @@ void drone_tracking::frame_analysis()
   if (debug_frame_num)
     cout << endl << "Frame: " << global_frame_counter << endl;
 
-  leds = diode_detection();
-  cout << "Found diodes: " << leds.size() << endl;
+  //leds = diode_detection();
+  //cout << "Found diodes: " << leds.size() << endl;
 
   // Hejgaard analysis
   //locate_uav(frame_bgr);
@@ -562,13 +562,13 @@ void drone_tracking::frame_analysis()
   {
     pos_x_m = (height/FOCAL_LENGTH)*(position_from_shape.x - CAMERA_X_POSITION);
     pos_y_m = (height/FOCAL_LENGTH)*(position_from_shape.y - CAMERA_Y_POSITION);
-   if( sqrt(pow(pos_x_m,2) - pow(prev_x,2)) <= MAX_POSITION_CHANGE &&
-         sqrt(pow(pos_y_m,2) - pow(prev_y,2)) <= MAX_POSITION_CHANGE &&
-         height <= MAX_HEIGHT_CHANGE &&
-         sqrt(pow(diode_drone.orientation,2) - pow(prev_orientation,2)) <= MAX_ORIENTATION_CHANGE)
-     {
+  //  if( sqrt(pow(pos_x_m,2) - pow(prev_x,2)) <= MAX_POSITION_CHANGE &&
+  //        sqrt(pow(pos_y_m,2) - pow(prev_y,2)) <= MAX_POSITION_CHANGE &&
+  //        height <= MAX_HEIGHT_CHANGE &&
+  //        sqrt(pow(diode_drone.orientation,2) - pow(prev_orientation,2)) <= MAX_ORIENTATION_CHANGE)
+  //    {
         control = 1;
-     }
+    //  }
   }
   // Store values as prev
   prev_x = pos_x_m;
