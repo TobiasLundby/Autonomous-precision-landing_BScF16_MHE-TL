@@ -9,6 +9,8 @@
 *              receive through it.
 *              Most of the technical socket connection stuff is from this page:
 *              http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+* LICENCE: BSD 3-Clause
+*
 *****************************************************************************/
 
 /***************************** Include files *******************************/
@@ -25,8 +27,7 @@
 
 
 /*****************************    Defines    *******************************/
-#define SERVER_IP "192.168.1.2"   // Hoejgaard on DroneNet
-//#define SERVER_IP "192.168.43.193"  // Hoejgaard on Galaxy
+#define SERVER_IP "192.168.1.2"
 #define PORT "3400"
 
 /*****************************    Structs    *******************************/
@@ -95,23 +96,6 @@ socket_client::socket_client()
 {
   init_socket_connection();
 }
-
-// socket_client::socket_client(char server_ip_in[20], char port_in[10])
-// /*****************************************************************************
-// *   Input    : server_ip, port_nr
-// *   Output   : None
-// *   Function : Overload constructor. Initializes connnection with specified ip
-// *              and port. Does not work with g++
-// ******************************************************************************/
-// {
-//   printf("%s %s\n",server_ip_in,port_in);
-//   strcpy (server_ip,server_ip_in);
-//   strcpy (port,port_in);
-//
-//   printf("%s %s\n",server_ip,port);
-//   init_socket_connection();
-// }
-
 
 void socket_client::error(char *msg)
 /*****************************************************************************
@@ -244,8 +228,6 @@ std::string socket_client::encode_frame(socket_package package)
   string_out += ';';
   string_out += std::to_string(package.field19);
   string_out += ';';
-  //retval"return_value";
-  //return string_out;
   return string_out;
 }
 

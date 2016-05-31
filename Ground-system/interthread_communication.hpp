@@ -6,6 +6,7 @@
 * MODULENAME.: interthread_communication.cpp
 * PROJECT....: Autonomous precision landing ground system
 * DESCRIPTION: Declares datatypes and control types for interthread communication
+* LICENCE: BSD 3-Clause
 *
 *****************************************************************************/
 

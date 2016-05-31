@@ -6,13 +6,9 @@
 * MODULENAME.: main.cpp
 * PROJECT....: Autonomous precision landing ground system
 * DESCRIPTION: Ground system
+* LICENCE: BSD 3-Clause
 *
 *****************************************************************************/
-
-// #include "opencv2/core.hpp"
-// #include "opencv2/imgproc.hpp"
-// #include "opencv2/highgui.hpp"
-// #include "opencv2/videoio.hpp"
 #include <iostream>
 #include <cstdlib>
 #include <pthread.h>
@@ -23,8 +19,6 @@
 
 using namespace cv;
 using namespace std;
-
-//void drawText(Mat & image);
 
 #define NUM_THREADS     1
 

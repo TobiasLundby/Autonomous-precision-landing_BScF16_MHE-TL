@@ -5,7 +5,8 @@
 *
 * MODULENAME.: DSM_analyser.hpp
 * PROJECT....: Autonomous precision landing ground system
-* DESCRIPTION: RX and TX of modified frames using the DSMX protocol
+* DESCRIPTION: Interprets and manipulates the channel values in the Spektrum DSMX protocol
+* LICENCE: BSD 3-Clause
 *
 *****************************************************************************/
 
@@ -15,7 +16,6 @@
 #include <errno.h>
 #include <stdbool.h>
 
-//#include <time.h>       /* time */
 #include <sys/time.h>   /* time */
 
 #include <wiringSerial.h>
@@ -212,13 +212,6 @@ double DSM_RX_TX::currentTimeUs()
 *   Function : Returns the current time in us
 ******************************************************************************/
 {
-    //timeval current;
-    //gettimeofday(&current, 0);
-    //struct timespec current;
-    //clock_gettime(CLOCK_REALTIME, &current);
-    //return (long long)current.tv_sec * 1000000000L + current.tv_nsec;
-    //printf("time returned is %li \n", (long)current.tv_sec * 1000000L + current.tv_usec);
-    //return (long)current.tv_sec * 1000000L + current.tv_usec;
     struct timeval tim;
     gettimeofday(&tim, NULL);
     if (debug_time_expert)
@@ -230,7 +223,7 @@ void DSM_RX_TX::decode_channel_value(package &p,int byte)
 /*****************************************************************************
 *   Input    : Package, byte number
 *   Output   : Changes the package channel content
-*   Function : ??
+*   Function : Decodes the channel values in a packet
 ******************************************************************************/
 {
     int chan_num = (p.byte_H[byte+1]>>3) & 0x0f;
@@ -354,16 +347,6 @@ bool DSM_RX_TX::DSM_analyse(bool loop)
     {
         while(true)
             RX_TX();
-
-        /* Below have been replaced with the proper fatal error state
-        while(!fatal_error)
-            RX_TX();
-
-        printf("Encountered a FATAL ERROR - echoing serial bytes until termination\n");
-        while (true)
-            if(serialDataAvail(ser_handle))
-                serialPutchar(ser_handle,serialGetchar(ser_handle));
-        */
         return true;
     }
     else
@@ -469,7 +452,6 @@ void DSM_RX_TX::RX_TX()
                                 package_in.byte_L[0] = byte_in;
                                 BYTE_TYPE = HIGH;
                                 sync_value = (256*old_byte_in)+byte_in;
-                                //printf("******* Preamble ********* Sync_val: %i\n",sync_value);
 
                                 if (debug_insane) {
                                     printf("Value is: %i \n", sync_value);
@@ -610,7 +592,6 @@ void DSM_RX_TX::RX_TX()
                         if (debug_errors)
                             printf("There have been %i errors\n",packet_errors);
                     }
-                    //printf("Time last: %f \n", time_diff_last);
                     sync_value_expected = sync_value;
                     sync_value_expected_next = sync_value_expected + SYNC_INCREMENT;
                     if (debug_expert)
@@ -631,7 +612,7 @@ void DSM_RX_TX::RX_TX()
                 else
                     last_sync_dist++;
 
-                //DETERMINE WHEATHER OR NOT THE THING BETEETH IS VALID
+                //DETERMINE WHEATHER OR NOT THE SYSTEM IS SAFE
                 if(safe_zone_syncs >= SAFE_ZONE_THRESHOLD && last_sync_dist == 14)
                 {
                     byte_counter = 0;
@@ -750,11 +731,6 @@ void DSM_RX_TX::change_channel_offset(int channel, int offset)
         default:
             break;
     }
-
-    /*
-    change_packet_values(package_in, package_out);
-    packet_modified = true; // Do it once per packet
-    */
 
     if (packet_max_value)
         if (debug_simple)

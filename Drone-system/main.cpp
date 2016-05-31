@@ -5,7 +5,8 @@
 *
 * MODULENAME.: main.cpp
 * PROJECT....: Autonomous precision landing ground system
-* DESCRIPTION: ???
+* DESCRIPTION: Drone system
+* LICENCE: BSD 3-Clause
 *
 *****************************************************************************/
 
@@ -79,6 +80,8 @@ typedef struct socket_package_double{
 #define CH5THR              5
 
 #define dt                  0.022
+
+#define PRINT_PACKETS       false
 
 
 /*****************************    Functions    *******************************/
@@ -316,72 +319,29 @@ void main_func()
           case MAIN_S_INSIDE_VIEW:
               break;
           case MAIN_S_FORCE_DOWN:
-/*
-               if (sock_pack_in.field0 > -OFFSET_MAX_RANGE and sock_pack_in.field0 < OFFSET_MAX_RANGE)
-                   ch0_off_goal = sock_pack_in.field0;
-               if (sock_pack_in.field1 > -OFFSET_MAX_RANGE and sock_pack_in.field1 < OFFSET_MAX_RANGE)
-                   ch1_off_goal = sock_pack_in.field1;
-               if (sock_pack_in.field2 > -OFFSET_MAX_RANGE and sock_pack_in.field2 < OFFSET_MAX_RANGE)
-                   ch2_off_goal = sock_pack_in.field2;
-               if (sock_pack_in.field3 > -OFFSET_MAX_RANGE and sock_pack_in.field3 < OFFSET_MAX_RANGE)
-                   ch3_off_goal = sock_pack_in.field3;
-               if (sock_pack_in.field4 > -OFFSET_MAX_RANGE and sock_pack_in.field4 < OFFSET_MAX_RANGE)
-                   ch4_off_goal = sock_pack_in.field4;
-               if (sock_pack_in.field5 > -OFFSET_MAX_RANGE and sock_pack_in.field5 < OFFSET_MAX_RANGE)
-                   ch5_off_goal = sock_pack_in.field5;
-               if (sock_pack_in.field6 > -OFFSET_MAX_RANGE and sock_pack_in.field6 < OFFSET_MAX_RANGE)
-                   ch6_off_goal = sock_pack_in.field6;
-
-               if (ch0_off > ch0_off_goal)
-                   ch0_off -= OFFSET_MAX_CHANGE;
-               else if (ch0_off < ch0_off_goal)
-                   ch0_off += OFFSET_MAX_CHANGE;
-               if (ch1_off > ch1_off_goal)
-                   ch1_off -= OFFSET_MAX_CHANGE;
-               else if (ch1_off < ch1_off_goal)
-                   ch1_off += OFFSET_MAX_CHANGE;
-               if (ch2_off > ch2_off_goal)
-                   ch2_off -= OFFSET_MAX_CHANGE;
-               else if (ch2_off < ch2_off_goal)
-                   ch2_off += OFFSET_MAX_CHANGE;
-               if (ch3_off > ch3_off_goal)
-                   ch3_off -= OFFSET_MAX_CHANGE;
-               else if (ch3_off < ch3_off_goal)
-                   ch3_off += OFFSET_MAX_CHANGE;
-               if (ch4_off > ch4_off_goal)
-                   ch4_off -= OFFSET_MAX_CHANGE;
-               else if (ch4_off < ch4_off_goal)
-                   ch4_off += OFFSET_MAX_CHANGE;
-               if (ch5_off > ch5_off_goal)
-                   ch5_off -= OFFSET_MAX_CHANGE;
-               else if (ch5_off < ch5_off_goal)
-                   ch5_off += OFFSET_MAX_CHANGE;
-               if (ch6_off > ch6_off_goal)
-                   ch6_off -= OFFSET_MAX_CHANGE;
-               else if (ch6_off < ch6_off_goal)
-                   ch6_off += OFFSET_MAX_CHANGE;
-*/
               ch1_off = p_controller(sock_pack_in.field7, sock_pack_in.field1, x_params); // Roll
               ch2_off = p_controller(sock_pack_in.field8, sock_pack_in.field2, y_params); // Pitch
               ch0_off = p_controller(sock_pack_in.field9, sock_pack_in.field3, z_params); // Throttle
 
               //if (serial_con.get_in_channel_value(5) < CH5POS1 - CH5THR and serial_con.get_in_channel_value(5) > CH5POS1 + CH5THR) {
                   //printf("Control");
-              if(sock_pack_in.field0 == 1) {
+              /* Only control from the ground station - currently diabled */
+              if(sock_pack_in.field0 == 1 and false) {
                      serial_con.change_channel_offsets(ch0_off,ch1_off,ch2_off,ch3_off,ch4_off,ch5_off,ch6_off);
               } else {
                   serial_con.change_channel_offsets(0,0,0,0,0,0,0);
               }
 
-              //print_in_frame(serial_con);
-              //print_out_frame(serial_con);
+              if (PRINT_PACKETS) {
+                  print_in_frame(serial_con);
+                  print_out_frame(serial_con);
+              }
 
-              /*
+              /* Control from the ground station and transmitter - currently enabled */
               if (serial_con.get_in_channel_value(5) < CH5POS1 - CH5THR and serial_con.get_in_channel_value(5) > CH5POS1 + CH5THR) {
                    if(sock_pack_in.field0 == 1)
                      ch0_off_goal = -20;
               }
-              */
 
                sock_pack_out.field0 = serial_con.get_out_channel_value(0);
                sock_pack_out.field1 = serial_con.get_out_channel_value(1);
@@ -431,10 +391,6 @@ void main_func()
         mutex_logger << "Main unlocked mutex_socket_in_global" << endl;
       }
 
-
-
-      //socket.socket_send_frame(sock_pack_out);
-      //socket.socket_get_frame(&sock_pack_in);
       int int_in_factor = 1000;
       sock_pack_in_double.field1  = sock_pack_in.field1/int_in_factor; // x, drone pos
       sock_pack_in_double.field2  = sock_pack_in.field2/int_in_factor; // y, drone pos
@@ -466,27 +422,6 @@ void main_func()
 }
 
 
-//  1     #include <iostream>
-//  2     #include <thread>
-//  3
-//  4     //This function will be called from a thread
-//  5
-//  6     void call_from_thread() {
-//  7         std::cout << "Hello, World" << std::endl;
-//  8     }
-//  9
-// 10     int main() {
-// 11         //Launch a thread
-// 12         std::thread t1(call_from_thread);
-// 13
-// 14         //Join the thread with the main thread
-// 15         t1.join();
-// 16
-// 17         return 0;
-// 18     }
-
-
-
 /*****************************    MAIN    *******************************/
 int main(int argc,char* argv[])
 {
@@ -504,13 +439,6 @@ int main(int argc,char* argv[])
     int policy;
     pthread_getschedparam(t1.native_handle(),&policy, &sch);
     cout << "Priority 1: " << sch.sched_priority << endl;
-  /*  sch.sched_priority = 0;
-    if(pthread_setschedparam(t1.native_handle(), SCHED_FIFO, &sch)) {
-       std::cout << "Failed to setschedparam thread 1: " << std::strerror(errno) << '\n';
-     }
-    pthread_getschedparam(t1.native_handle(),&policy, &sch);
-    cout << "New priority 1:" << sch.sched_priority << endl;
-*/
     pthread_getschedparam(t2.native_handle(),&policy, &sch);
     cout << "Priority 2: " << sch.sched_priority << endl;
     sch.sched_priority = 10;

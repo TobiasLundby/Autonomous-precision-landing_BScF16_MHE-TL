@@ -6,6 +6,7 @@
 * MODULENAME.: drone_tracking.hpp
 * PROJECT....: Autonomous precision landing ground system
 * DESCRIPTION: Includes functionality to track a drone
+* LICENCE: BSD 3-Clause
 *
 *****************************************************************************/
 
@@ -18,8 +19,8 @@
 #include "opencv2/videoio.hpp"            // OpenCV includes
 #include <string>                         // Nessecary for constructor and other
 #include "opencv2/features2d.hpp"         // Used for blob detection
-#include "opencv2/photo.hpp"              // Højgaard does not know if he uses this - NOTE
-#include <opencv2/video/background_segm.hpp> // Højgaard does not know if he uses this - NOTE
+#include "opencv2/photo.hpp"
+#include <opencv2/video/background_segm.hpp>
 #include <vector>
 
 #include <iostream>
@@ -162,9 +163,7 @@ private: // Methods
   double calc_height(vector<Point>);
 
 private: // Variables
-  int test_val = 0; // REMOVE THIS AT SOME POINT
-
-
+  int test_val = 0;
 
   string filename;
   Mat frame_bgr;
@@ -439,16 +438,6 @@ void drone_tracking::window_taskbar_create(int window_number)
     createTrackbar("match treshold",window_names[window_number], &shape_found_thresh,200);
     createTrackbar("drone minimum size",window_names[window_number], &minimum_drone_size,2000);
   }
-
-/*
-  int erosion_type = EROSION_TYPE;
-  int erosion_size = EROSION_SIZE;
-  int erode_iterations = ERODE_ITERATIONS;
-  int dilation_type = DILATION_TYPE;
-  int dilation_size = DILATION_SIZE;
-  int dilate_iterations = DILATE_ITERATIONS;
-  int thresh_thresh = THRESH_THRESH;
-*/
 }
 
 void drone_tracking::show_frame(string window_text, bool show_this_frame, Mat in_frame)
@@ -478,12 +467,10 @@ void drone_tracking::frame_analysis()
   if (debug_frame_num)
     cout << endl << "Frame: " << global_frame_counter << endl;
 
-  //leds = diode_detection();
-  //cout << "Found diodes: " << leds.size() << endl;
+  leds = diode_detection();
+  //cout << "Found diodes: " << leds.size() << endl; // DEBUG
 
-  // Hejgaard analysis
-  //locate_uav(frame_bgr);
-  //simple_shape_tracking();
+  // Shape detection
   xy_position position_from_shape;    // For position returned
   double height;
   Mat shape_frame;                    // Frame with only drone masked out
@@ -562,13 +549,7 @@ void drone_tracking::frame_analysis()
   {
     pos_x_m = (height/FOCAL_LENGTH)*(position_from_shape.x - CAMERA_X_POSITION);
     pos_y_m = (height/FOCAL_LENGTH)*(position_from_shape.y - CAMERA_Y_POSITION);
-  //  if( sqrt(pow(pos_x_m,2) - pow(prev_x,2)) <= MAX_POSITION_CHANGE &&
-  //        sqrt(pow(pos_y_m,2) - pow(prev_y,2)) <= MAX_POSITION_CHANGE &&
-  //        height <= MAX_HEIGHT_CHANGE &&
-  //        sqrt(pow(diode_drone.orientation,2) - pow(prev_orientation,2)) <= MAX_ORIENTATION_CHANGE)
-  //    {
-        control = 1;
-    //  }
+    control = 1;
   }
   // Store values as prev
   prev_x = pos_x_m;
@@ -596,13 +577,11 @@ void drone_tracking::frame_analysis()
       colour_count++;
     }
   }
-  //circle(frame_bgr, Point2f(position_from_shape.x,position_from_shape.y), 4, color_green, -1, 8, 0);
-
 
   show_frame(window_names[0], window_show[0], frame_bgr); // Show original frame
 
   test_val++;
-  // Put someting in the socket packet;
+  // Put data in the socket packet;
   pthread_mutex_lock(&mutex_sock_pack_out);
   sock_pack_out.field0 = control; // Control. 0: Not in frame, 1: In frame, 2: In frame and control
   sock_pack_out.field1 = (int)(pos_x_m*1000);   // x
@@ -777,22 +756,6 @@ vector<KeyPoint> drone_tracking::keypoint_detection(Mat in_frame_gray, Mat in_fr
   return temp_keypoints;
 }
 
-/*
-double drone_tracking::get_orientation(Mat red_mask_local)
-{
-  Mat mask_grey;
-  red_mask_local.copyTo(mask_grey);
-  Moments moment = moments(mask_grey,false);  // Calculate moments. Arguments - 1st: a contour, 2nd: binary image, if true all nonzero pixels are treated as 1's
-  //pos->x = moment.m10/moment.m00;            // Calculate x position
-  //pos->y = moment.m01/moment.m00;            // Calculate y position
-  // Calculate orientation (may not be correct). Based on link above
-  double orientation = 0.5 * atan(2 * moment.m11 / (moment.m20 - moment.m02));
-  double orientation_out = (orientation / M_PI) * 180;
-
-  return orientation_out;
-}
-*/
-
 vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoints, bool in_secondary_detection_run, Mat in_mask_red)
 /*****************************************************************************
 *   Input    : The 1st arg is the passed keypoints, the 2nd arg is whether or not the keypoints are from a secondary run / secondary_detection_run (some params change); 3rd arg: the red mask frame.
@@ -859,7 +822,7 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
         }
       }
     }
-    /*
+    /* DEBUG
     cout << "Smallest relation test" << endl;
     cout << "Min diode 1: " << min_dist1_diode1 << endl;
     cout << "Min diode 2: " << min_dist1_diode2 << endl;
@@ -878,7 +841,7 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
         }
       }
     }
-    /*
+    /* DEBUG
     if (diode1_3or4 < diode_keypoints.size() and diode1_3or4 < diode_keypoints.size()) {
       cout << "Bottom relation" << endl;
       cout << "Ref diode: " << diode1_3or4 << endl;
@@ -936,21 +899,8 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
           drone_position.orientation_run = 2;
           drone_position.orientation_length_factor = temp_dist;
           line( frame_bgr, diode_keypoints[diode1_3or4].pt, diode_keypoints[diode2_3or4].pt, Scalar( 102, 0, 204 ));
-          /*
-          bool rot_cor = false; // rotation correction
-          for (size_t i = 0; i < diode_keypoints.size(); i++)
-            if ((i != diode1_3or4 or i != diode2_3or4) and !rot_cor) {
-              if (diode_keypoints[i].pt.y < diode_keypoints[diode1_3or4].pt.y and
-                diode_keypoints[i].pt.y < diode_keypoints[diode2_3or4].pt.y) {
-                rot_cor = true;
-              }
-            }
-          if (rot_cor)
-            drone_position.orientation += 90;
-          else
-            drone_position.orientation += 270;
-          */
 
+          // DEBUG
           //cout << "[2] Drone has orientation: " << drone_position.orientation << " (calculated from point " << diode1_3or4 << " and " << diode2_3or4 << ")" << endl;
           //cout << " [2] Diode1: " << diode1_3or4 << ": " << diode_keypoints[diode1_3or4].pt.x << ", " << diode_keypoints[diode1_3or4].pt.y << endl;
           //cout << " [2] Diode2: " << diode2_3or4 << ": " << diode_keypoints[diode2_3or4].pt.x << ", " << diode_keypoints[diode2_3or4].pt.y << endl;
@@ -975,54 +925,9 @@ vector<KeyPoint> drone_tracking::keypoint_filtering(vector<KeyPoint> in_keypoint
       drone_position.orientation_run = 1;
       drone_position.orientation_length_factor = temp_dist;
       line( frame_bgr, diode_keypoints[min_dist1_diode1].pt, diode_keypoints[min_dist1_diode2].pt, Scalar( 102, 0, 204 ));
-
-      /*
-      bool rot_cor = false; // rotation correction
-      for (size_t i = 0; i < diode_keypoints.size(); i++)
-        if ((i != min_dist1_diode1 or i != min_dist1_diode2) and !rot_cor) {
-          if (diode_keypoints[i].pt.y < diode_keypoints[min_dist1_diode1].pt.y and
-            diode_keypoints[i].pt.y < diode_keypoints[min_dist1_diode2].pt.y) {
-            rot_cor = true;
-          }
-        }
-      if (rot_cor)
-        drone_position.orientation += 270;
-      else
-        drone_position.orientation += 90;
-      */
-
-      /*
-      double temp_y = 0;
-      for (size_t i = 0; i < diode_keypoints.size(); i++)
-        if (i != min_dist1_diode1 or i != min_dist1_diode2)
-          temp_y += diode_keypoints[i].pt.y;
-      temp_y /= (diode_keypoints.size()-2);
-      if (temp_y < ((diode_keypoints[min_dist1_diode1].pt.y + diode_keypoints[min_dist1_diode2].pt.y)/2))
-        drone_position.orientation += 180;
-      */
-
-      //cout << "[1] Drone has orientation: " << drone_position.orientation << " (calculated from point " << min_dist1_diode1 << " and " << min_dist1_diode2 << ")" << endl;
-      //cout << " [1] Diode1: " << min_dist1_diode1 << ": " << diode_keypoints[min_dist1_diode1].pt.x << ", " << diode_keypoints[min_dist1_diode1].pt.y << endl;
-      //cout << " [1] Diode2: " << min_dist1_diode2 << ": " << diode_keypoints[min_dist1_diode2].pt.x << ", " << diode_keypoints[min_dist1_diode2].pt.y << endl;
-
-      // Find position for 4 diodes
-      //Calculate position
       return true;
     }
-    // CODE
-  } /*else if (diode_keypoints >= 4) {
-
-  }*/
-
-  /*
-  // Tests - start
-  drone_position.x = 0;
-  cout << "Y: " << drone_position.y << endl << endl;
-  if (diode_keypoints.size()) {
-    cout << "Y: " << diode_keypoints[0].pt.x << endl << endl;
   }
-  */
-  // Tests - end
   return true;
 }
 
@@ -1035,27 +940,14 @@ double drone_tracking::calc_dist(KeyPoint point1, KeyPoint point2)
 {
   return sqrt(pow((point2.pt.x-point1.pt.x),2)+pow((point2.pt.y-point1.pt.y),2));
 }
-
 // Drone shape tracking methods
-
-
 void drone_tracking::simple_shape_tracking()
 {
   Mat frame_gray, black_mask1, black_mask1_blurred;
   int black_low = 0;
   int black_high = 40;
 
-
-
-  //cvtColor(frame_bgr, frame_gray, CV_BGR2GRAY);
-  //findContours(frame_gray,contours,hierarchy,CV_RETR_TREE,CV_CHAIN_APPROX_SIMPLE,Point(0,0));
-
   inRange(frame_bgr, Scalar(black_low,black_low,black_low), Scalar(black_high,black_high,black_high),black_mask1);
-  //show_frame("black_mask",black_mask1);
-  //blur(black_mask1, black_mask1_blurred,Size(25,25));
-  //show_frame("black_mask blurred",black_mask1_blurred);
-  //inRange(black_mask1_blurred, Scalar(black_low,black_low,black_low), Scalar(black_high,black_high,black_high),black_mask1);
-  //show_frame("new black_mask ",black_mask1_blurred);
 
   Mat frame_local, frame_local2;
   frame_bgr.copyTo(frame_local);
@@ -1065,15 +957,11 @@ void drone_tracking::simple_shape_tracking()
   vector<vector<Point>> contours;
   vector<Vec4i> hierarchy;
 
-  //cvtColor(frame_bgr,frame_gray,CV_BGR2GRAY);
-
   int thresh = 150;
   Mat canny_result;
   Canny(frame_bgr,canny_result, thresh,thresh*2);
-  //show_frame("Canny result",canny_result);
 
   findContours(canny_result,contours,hierarchy,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE,Point(0,0));
-  //drawContours(frame_local, contours, int contourIdx, const Scalar &color{#, int thickness{#, int lineType{#, InputArray hierarchy{#, int maxLevel{#, Point offset#}#}#}#}#})
 
   Scalar color=Scalar(0,255,0);
   for(int i;i<contours.size();i++)
@@ -1453,12 +1341,8 @@ double drone_tracking::calc_height(vector<Point> contour)
 *              D’ = (W x F) / P
 ******************************************************************************/
 {
-  //Mat test_frame, test_frame2;
-  //frame_bgr.copyTo(test_frame);
-  //frame_bgr.copyTo(test_frame2);
   double largest_drone_size = 0;
   double drone_size = 0;
-  //Point p1, p2;
 
   if (contour.size() > 0)
   {
@@ -1468,61 +1352,17 @@ double drone_tracking::calc_height(vector<Point> contour)
       for(int j = 0; j < contour.size(); j++)
       {
         if(i!=j)
-          //circle(test_frame2, Point2f(contour[i].x,contour[i].y), 4, color_red, -1, 8, 0);
-          //circle(test_frame2, Point2f(contour[j].x,contour[j].y), 4, color_red, -1, 8, 0);
           drone_size = calc_dist(contour[i],contour[j]);
           if(drone_size > largest_drone_size)
           {
             largest_drone_size = drone_size;
-            //p1 = contour[i];
-            //p2 = contour[j];
           }
         }
       }
     }
   }
-  //cout << "There are " << contour.size() << " contour points" << endl;
-  cout << "largest_drone_size: " << largest_drone_size << endl;
-
-  //circle(test_frame, Point2f(p1.x,p1.y), 4, color_red, -1, 8, 0);
-  //circle(test_frame, Point2f(p2.x,p2.y), 4, color_green, -1, 8, 0);
-
-  //imshow("Points used", test_frame);
-  /*
-  for(int i; i < contour.size();i++)
-    circle(test_frame2, Point2f(contour[i].x,contour[i].y), 4, color_red, -1, 8, 0);
-  */
-  //imshow("Points all", test_frame2);
+  //cout << "largest_drone_size: " << largest_drone_size << endl;   // DEBUG
   return (FOCAL_LENGTH * DRONE_SIZE)/largest_drone_size; // (FOCAL_LENGTH * ACTUAL_DRONE_SIZE)/MEASURED_DRONE_SIZE.
 }
-
-
-/*
-void drone_tracking::handle_trackbars()
-{
-
-  createTrackbar(const cv::String &trackbarname, const cv::String &winname, int *value, int count)
-  createTrackbar("erosion_size", "Settings", &erosion_size, 10);
-  //createTrackbar("erosion_type","Settings",&erosion_type,3)
-  create("erode_iterations","Settings",)
-
-  int erosion_type = EROSION_TYPE;
-  int erosion_size = EROSION_SIZE;
-  int erode_iterations = ERODE_ITERATIONS;
-  int dilation_type = DILATION_TYPE;
-  int dilation_size = DILATION_SIZE;
-  int dilate_iterations = DILATE_ITERATIONS;
-  int thresh_thresh = THRESH_THRESH;
-}
-*/
-// int drone_tracking::dummy_function()
-// /*****************************************************************************
-// *   Input    :
-// *   Output   :
-// *   Function :
-// ******************************************************************************/
-// {
-//
-// }
 
 /****************************** End Of Module *******************************/

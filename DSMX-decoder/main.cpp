@@ -4,8 +4,9 @@
 * Mathias Højgaard Egeberg & Tobias Lundby
 *
 * MODULENAME.: main.cpp
-* PROJECT....:
-* DESCRIPTION:
+* PROJECT....: Autonomous precision landing ground system
+* DESCRIPTION: Can decode and encode the high and low byte of the DSMX protocol
+* LICENCE: BSD 3-Clause
 *
 *****************************************************************************/
 
@@ -27,7 +28,7 @@ using namespace std;
 /*****************************    MAIN    *******************************/
 
 int main(void) {
-	int add_val = 20;
+	int add_val = 0;
 
 	int high_byte_in = 0x0C;
 	int low_byte_in  = 0x10;

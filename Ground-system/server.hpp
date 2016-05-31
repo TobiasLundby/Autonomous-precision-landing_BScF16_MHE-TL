@@ -9,6 +9,8 @@
 *              receive through it.
 *              Most of the technical socket connection stuff is from this page:
 *              http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+* LICENCE: BSD 3-Clause
+*
 *****************************************************************************/
 
 
@@ -27,28 +29,6 @@
 #define PORT "3400"
 
 /*****************************    Structs    *******************************/
-/*typedef struct socket_package{
-  int field0;
-  int field1;
-  int field2;
-  int field3;
-  int field4;
-  int field5;
-  int field6;
-  int field7; // Original packet ends here
-  int field8;
-  int field9;
-  int field10;
-  int field11;
-  int field12;
-  int field13;
-  int field14;
-  int field15;
-  int field16;
-  int field17;
-  int field18;
-  int field19;
-} socket_package;*/
 
 /*****************************   Class   *******************************/
 class socket_server
@@ -71,7 +51,6 @@ private:
   socket_package decode_frame(char []);
 
   // Variables
-//  char port[10] = PORT;
   int sockfd, newsockfd, portno, clilen;
   char buffer[256];
   struct sockaddr_in serv_addr, cli_addr;
@@ -93,19 +72,6 @@ socket_server::socket_server()
 {
   init_socket_connection();
 }
-
-
-// socket_server::socket_server(char port_in[10],char dummy[10])
-// /*****************************************************************************
-// *   Input    : server_ip, port_nr
-// *   Output   : None
-// *   Function : Overload constructor. Initializes connnection with specified ip
-// *              and port. Does not work with g++
-// ******************************************************************************/
-// {
-//   strcpy(port,port_in);
-//   init_socket_connection();
-// }
 
 void socket_server::error(char *msg)
 /*****************************************************************************
